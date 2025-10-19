@@ -1,0 +1,127 @@
+        /* Pagination */
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #3498db;
+            color: #3498db;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            min-width: 40px;
+            height: 40px;
+        }
+
+        .page-btn:hover {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .page-btn.active {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+
+        .page-ellipsis {
+            padding: 8px 12px;
+            color: #7f8c8d;
+            font-weight: bold;
+        }
+        
+        .message-preview {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .message-sender {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0 0 5px 0;
+        }
+        
+        .message-email {
+            color: #7f8c8d;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 0 0 5px 0;
+        }
+
+        .no-messages {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            background: white;
+            border-radius: 10px;
+        }
+        
+        .table-actions {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .clickable-row { 
+            cursor: pointer; 
+        }
+
+        /* Responsive pagination */
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .search-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .messages-table {
+                overflow-x: auto;
+                display: block;
+                white-space: nowrap;
+            }
+            
+            .table-actions {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .pagination {
+                gap: 3px;
+            }
+            
+            .page-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+                min-width: 35px;
+                height: 35px;
+            }
+            
+            .page-btn i {
+                font-size: 12px;
+            }
+        }
