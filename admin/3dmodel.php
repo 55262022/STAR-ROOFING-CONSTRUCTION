@@ -6,6 +6,15 @@ if (!isset($_GET['product_id'])) {
     die('Product not specified.');
 }
 
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use Dotenv\Dotenv;
+
+$dotenv = Dotenv::createImmutable(__DIR__ . '/../');
+$dotenv->load();
+
+$meshyApiKey = $_ENV['MESHY_KEY'];
+
 $product_id = intval($_GET['product_id']);
 $stmt = $conn->prepare("SELECT * FROM products WHERE product_id = ?");
 $stmt->bind_param("i", $product_id);
@@ -179,7 +188,7 @@ document.getElementById('imageInput').addEventListener('change', async function(
     const files = event.target.files;
     if (!files.length) return;
 
-    const apiKey = "YOUR_MESHY_API_TOKEN"; // 🔑 Replace with your real Meshy token
+    const MESHY_KEY = <?= json_encode($meshyApiKey) ?>;
     const productName = <?= json_encode($product['name']) ?>;
     const productId = <?= json_encode($product['product_id']) ?>;
 
