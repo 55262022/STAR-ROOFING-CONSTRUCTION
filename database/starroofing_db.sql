@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 19, 2025 at 11:29 AM
+-- Generation Time: Oct 20, 2025 at 03:32 PM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- PHP Version: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -43,11 +43,12 @@ CREATE TABLE `accounts` (
 --
 
 INSERT INTO `accounts` (`id`, `email`, `password`, `role_id`, `account_status`, `last_login`, `created_at`, `updated_at`) VALUES
-(7, 'ajmacaraig19@gmail.com', '$2y$10$vpvhTBLnHY84MDjuEUlAQ.XWjiJ2MW8iUUxsJB0kzF97DtmQU3H/G', 2, 'active', '2025-10-19 05:15:22', '2025-09-12 11:34:43', '2025-10-19 05:15:22'),
-(8, 'ajmacaraig20@gmail.com', '$2y$10$0xiOQg8aTUFKO9g/vajF.u5fM.nD9vMHXLqLPLoCia/HEzwR8XqAe', 1, 'active', '2025-10-19 07:32:20', '2025-09-12 11:45:37', '2025-10-19 07:32:20'),
+(7, 'ajmacaraig19@gmail.com', '$2y$10$vpvhTBLnHY84MDjuEUlAQ.XWjiJ2MW8iUUxsJB0kzF97DtmQU3H/G', 2, 'active', '2025-10-20 12:19:05', '2025-09-12 11:34:43', '2025-10-20 12:19:05'),
+(8, 'ajmacaraig20@gmail.com', '$2y$10$0xiOQg8aTUFKO9g/vajF.u5fM.nD9vMHXLqLPLoCia/HEzwR8XqAe', 1, 'active', '2025-10-20 05:13:14', '2025-09-12 11:45:37', '2025-10-20 05:13:14'),
 (9, 'ajmacaraig18@gmail.com', '$2y$10$TRYyLzGYJgBEC7JTpo5qD.8IOknPQ/Nhpa04gkhQmrHFe02.P4mLu', 2, 'active', '2025-10-08 06:52:34', '2025-09-15 09:34:45', '2025-10-12 07:29:51'),
 (10, '57842022@holycross.edu.ph', '$2y$10$VbwIwOWnPmhDvFsPwccoaOBzujWxl9waRxoJJbhXxMZpWPIR/Mmlu', 2, 'active', NULL, '2025-09-16 11:56:11', '2025-09-16 11:59:57'),
-(13, 'admin@gmail.com', '$2y$10$d7Cg4ccEJ1OLypxRhgg3rutDJYaVZwUrCcpzEv0vkIwH0Ddl.wp3a', 1, 'active', '2025-10-19 04:26:59', '2025-10-09 04:09:49', '2025-10-19 04:26:59');
+(13, 'admin@gmail.com', '$2y$10$d7Cg4ccEJ1OLypxRhgg3rutDJYaVZwUrCcpzEv0vkIwH0Ddl.wp3a', 1, 'active', '2025-10-19 04:26:59', '2025-10-09 04:09:49', '2025-10-19 04:26:59'),
+(15, 'client@example.com', '186474c1f2c2f735a54c2cf82ee8e87f2a5cd30940e280029363fecedfc5328c', 5, 'active', NULL, '2025-10-20 07:26:25', '2025-10-20 07:26:25');
 
 -- --------------------------------------------------------
 
@@ -120,10 +121,26 @@ CREATE TABLE `inquiries` (
   `lastname` varchar(100) NOT NULL,
   `email` varchar(150) NOT NULL,
   `phone` varchar(50) NOT NULL,
-  `inquiry_type` varchar(100) NOT NULL,
+  `region_code` varchar(20) NOT NULL,
+  `region_name` varchar(100) NOT NULL,
+  `province_code` varchar(20) NOT NULL,
+  `province_name` varchar(100) NOT NULL,
+  `city_code` varchar(20) NOT NULL,
+  `city_name` varchar(100) NOT NULL,
+  `barangay_code` varchar(20) NOT NULL,
+  `barangay_name` varchar(100) NOT NULL,
+  `street` varchar(255) DEFAULT NULL,
   `message` text NOT NULL,
-  `submitted_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `submitted_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `is_accepted` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `inquiries`
+--
+
+INSERT INTO `inquiries` (`id`, `firstname`, `lastname`, `email`, `phone`, `region_code`, `region_name`, `province_code`, `province_name`, `city_code`, `city_name`, `barangay_code`, `barangay_name`, `street`, `message`, `submitted_at`, `is_accepted`) VALUES
+(1, 'John', 'Doe', 'client@example.com', '09171234567', '', '', '', '', '', '', '', '', NULL, 'Hi, I’d like to inquire about a new roofing installation.', '2025-10-20 07:29:16', 1);
 
 -- --------------------------------------------------------
 
@@ -209,6 +226,31 @@ INSERT INTO `products` (`product_id`, `category_id`, `name`, `description`, `pri
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `replies`
+--
+
+CREATE TABLE `replies` (
+  `id` int(11) NOT NULL,
+  `inquiry_id` int(11) NOT NULL,
+  `sender` enum('admin','client') NOT NULL,
+  `message` text NOT NULL,
+  `sent_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `is_read` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `replies`
+--
+
+INSERT INTO `replies` (`id`, `inquiry_id`, `sender`, `message`, `sent_at`, `is_read`) VALUES
+(1, 1, 'client', 'Hello, I’d like to know the cost for a metal roof.', '2025-10-20 07:29:32', 0),
+(2, 1, 'admin', 'Hi John! Thanks for reaching out. The price starts at ₱500 per sqm.', '2025-10-20 07:29:32', 1),
+(3, 1, 'client', 'Okay great! Can I send my house measurements?', '2025-10-20 07:29:32', 0),
+(4, 1, 'admin', 'Sure, please send them over so we can provide a full quotation.', '2025-10-20 07:29:32', 1);
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `roles`
 --
 
@@ -226,7 +268,8 @@ CREATE TABLE `roles` (
 
 INSERT INTO `roles` (`role_id`, `role_name`, `role_description`, `created_at`, `updated_at`) VALUES
 (1, 'admin', 'Can manage content and users but with some restrictions', '2025-09-10 10:16:40', '2025-09-12 11:32:29'),
-(2, 'user', 'Regular user with limited access', '2025-09-10 10:16:40', '2025-09-12 11:32:34');
+(2, 'user', 'Regular user with limited access', '2025-09-10 10:16:40', '2025-09-12 11:32:34'),
+(5, 'client', 'Regular customer with access to inquiry features', '2025-10-20 07:25:42', '2025-10-20 07:25:42');
 
 -- --------------------------------------------------------
 
@@ -264,7 +307,8 @@ INSERT INTO `user_profiles` (`id`, `account_id`, `first_name`, `last_name`, `mid
 (2, 7, 'aj', 'lin', 'mac', '2025-09-02', '091287382173721', 'male', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', '2025-09-12 11:34:43', '2025-09-12 11:43:27'),
 (3, 8, 'Ajey', 'Linsangan', 'M', '2025-09-01', '09127312983', 'male', '10', 'Region X (Northern Mindanao)', '1018', 'Camiguin', '101802', 'Guinsiliban', '101802003', 'Cantaan', 'haha', '2025-09-12 11:45:37', '2025-10-08 06:15:57'),
 (4, 9, 'haha', 'hah', 'hah', '2025-09-15', '080282', 'female', '17', 'Region IV-B (MIMAROPA)', '1752', 'Oriental Mindoro', '175210', 'Pola', '175210011', 'Malibago', 'haha', '2025-09-15 09:34:45', '2025-09-15 09:34:45'),
-(5, 10, 'Alvin', 'Bayabos', 'S', '2025-01-14', '09871123213', 'male', '13', 'National Capital Region (NCR)', '1376', 'Ncr, Fourth District', '137603', 'City Of Muntinlupa', '137603002', 'Bayanan', 'bahay', '2025-09-16 11:56:11', '2025-10-15 06:08:57');
+(5, 10, 'Alvin', 'Bayabos', 'S', '2025-01-14', '09871123213', 'male', '13', 'National Capital Region (NCR)', '1376', 'Ncr, Fourth District', '137603', 'City Of Muntinlupa', '137603002', 'Bayanan', 'bahay', '2025-09-16 11:56:11', '2025-10-15 06:08:57'),
+(9, 15, 'John', 'Doe', NULL, NULL, '09171234567', 'male', NULL, NULL, NULL, NULL, NULL, 'Quezon City', NULL, NULL, NULL, '2025-10-20 07:26:36', '2025-10-20 07:26:36');
 
 --
 -- Indexes for dumped tables
@@ -319,6 +363,13 @@ ALTER TABLE `products`
   ADD KEY `created_by` (`created_by`);
 
 --
+-- Indexes for table `replies`
+--
+ALTER TABLE `replies`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `inquiry_id` (`inquiry_id`);
+
+--
 -- Indexes for table `roles`
 --
 ALTER TABLE `roles`
@@ -340,7 +391,7 @@ ALTER TABLE `user_profiles`
 -- AUTO_INCREMENT for table `accounts`
 --
 ALTER TABLE `accounts`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `categories`
@@ -358,7 +409,7 @@ ALTER TABLE `employees`
 -- AUTO_INCREMENT for table `inquiries`
 --
 ALTER TABLE `inquiries`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `login_attempts`
@@ -379,16 +430,22 @@ ALTER TABLE `products`
   MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
+-- AUTO_INCREMENT for table `replies`
+--
+ALTER TABLE `replies`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
 -- AUTO_INCREMENT for table `roles`
 --
 ALTER TABLE `roles`
-  MODIFY `role_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `role_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `user_profiles`
 --
 ALTER TABLE `user_profiles`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- Constraints for dumped tables
@@ -406,6 +463,12 @@ ALTER TABLE `accounts`
 ALTER TABLE `products`
   ADD CONSTRAINT `products_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `products_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `accounts` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `replies`
+--
+ALTER TABLE `replies`
+  ADD CONSTRAINT `replies_ibfk_1` FOREIGN KEY (`inquiry_id`) REFERENCES `inquiries` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `user_profiles`
