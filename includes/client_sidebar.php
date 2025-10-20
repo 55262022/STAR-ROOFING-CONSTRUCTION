@@ -10,7 +10,7 @@
         <!-- <li><a href="dashboard.php"><i class="fas fa-home"></i> <span>Dashboard</span></a></li> -->
         <li><a href="#" onclick="showSection('dashboard')"><i class="fas fa-home"></i> <span>Dashboard</span></a></li>
         <li><a href="#" onclick="showSection('materials')"><i class="fas fa-home"></i> <span>Materials</span></a></li>
-        <li><a href="#" onclick="showSection('inquiry')"><i class="fas fa-home"></i> <span>Inquiry</span></a></li>
+        <!-- <li><a href="#" onclick="showSection('inquiry')"><i class="fas fa-home"></i> <span>Inquiry</span></a></li> -->
         <!-- <li><a href="inquiry.php"><i class="fas fa-users"></i> <span>Inquiry</span></a></li> -->
         
         
