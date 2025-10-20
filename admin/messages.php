@@ -2,1075 +2,353 @@
 include '../authentication/auth.php';
 require_once '../database/starroofing_db.php';
 
-// Initialize variables for filters
+// Basic pagination / search kept but primary UI is a two-column inbox+chat
 $search_term = $_GET['search'] ?? '';
-$status_filter = $_GET['status'] ?? 'all';
-$date_filter = $_GET['date'] ?? 'all';
-$page = $_GET['page'] ?? 1;
+$page = max(1, (int)($_GET['page'] ?? 1));
 $limit = 10;
 $offset = ($page - 1) * $limit;
 
-// Build query with filters
-$query = "SELECT id, firstname, lastname, email, message, created_at, is_read, is_replied 
-          FROM contact_messages 
-          WHERE is_archived = 0";
+// Helper: ensure replies table exists and is_accepted column exists (attempt, but won't break if fails)
+$conn->query("
+    CREATE TABLE IF NOT EXISTS replies (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        inquiry_id INT NOT NULL,
+        sender ENUM('admin','client') NOT NULL,
+        message TEXT NOT NULL,
+        sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (inquiry_id) REFERENCES inquiries(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB;
+");
 
-$count_query = "SELECT COUNT(*) as total 
-                FROM contact_messages 
-                WHERE is_archived = 0";
-
-// Status filter
-if ($status_filter !== 'all') {
-    switch ($status_filter) {
-        case 'unread':
-            $query .= " AND is_read = 0";
-            $count_query .= " AND is_read = 0";
-            break;
-        case 'read':
-            $query .= " AND is_read = 1";
-            $count_query .= " AND is_read = 1";
-            break;
-        case 'replied':
-            $query .= " AND is_replied = 1";
-            $count_query .= " AND is_replied = 1";
-            break;
-        case 'not_replied':
-            $query .= " AND is_replied = 0";
-            $count_query .= " AND is_replied = 0";
-            break;
-    }
+if (!$conn->query("SHOW COLUMNS FROM inquiries LIKE 'is_accepted'")->fetch_assoc()) {
+    // try to add column; if fails (permissions) it's ok — accept endpoint also attempts
+    @$conn->query("ALTER TABLE inquiries ADD COLUMN is_accepted TINYINT(1) DEFAULT 0");
 }
 
-// Date filter
-if ($date_filter !== 'all') {
-    $date_condition = "";
-    switch ($date_filter) {
-        case 'today':
-            $date_condition = "DATE(created_at) = CURDATE()";
-            break;
-        case 'yesterday':
-            $date_condition = "DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)";
-            break;
-        case 'week':
-            $date_condition = "created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-            break;
-        case 'month':
-            $date_condition = "created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
-            break;
-        case 'older':
-            $date_condition = "created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)";
-            break;
-    }
-    if ($date_condition) {
-        $query .= " AND $date_condition";
-        $count_query .= " AND $date_condition";
-    }
-}
-
-// Search term
-if (!empty($search_term)) {
-    $search_like = "%$search_term%";
-    $query .= " AND (firstname LIKE ? OR lastname LIKE ? OR email LIKE ? OR message LIKE ?)";
-    $count_query .= " AND (firstname LIKE ? OR lastname LIKE ? OR email LIKE ? OR message LIKE ?)";
-}
-
-$query .= " ORDER BY created_at DESC LIMIT ? OFFSET ?";
-
-// Get total count
-$stmt_count = $conn->prepare($count_query);
-if (!empty($search_term)) {
-    $stmt_count->bind_param("ssss", $search_like, $search_like, $search_like, $search_like);
-}
-$stmt_count->execute();
-$count_result = $stmt_count->get_result();
-$total_messages = $count_result->fetch_assoc()['total'];
-$total_pages = ceil($total_messages / $limit);
-
-// Get messages
-$stmt = $conn->prepare($query);
-if (!empty($search_term)) {
-    $stmt->bind_param("ssssii", $search_like, $search_like, $search_like, $search_like, $limit, $offset);
-} else {
-    $stmt->bind_param("ii", $limit, $offset);
-}
+// We'll fetch initial page load data server-side for SEO and fallback
+$inquiries = [];
+$sql = "SELECT id, firstname, lastname, email, phone, inquiry_type, message, submitted_at, COALESCE(is_accepted,0) as is_accepted
+        FROM inquiries
+        WHERE COALESCE(is_accepted,0) = 0
+        ORDER BY submitted_at DESC
+        LIMIT ? OFFSET ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("ii", $limit, $offset);
 $stmt->execute();
-$result = $stmt->get_result();
-$messages = $result->fetch_all(MYSQLI_ASSOC);
+$res = $stmt->get_result();
+$inquiries = $res->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 ?>
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact Messages - Star Roofing & Construction</title>
-    <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- CSS style -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="../css/admin_main.css">
-  <style>
-        /* Base styles and reset */        
-        .messages-content {
-            flex: 1;
-            padding: 30px;
-        }
-        
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-        
-        .page-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin: 0 0 5px 0;
-        }
-        
-        .page-description {
-            color: #7f8c8d;
-            margin: 0;
-        }
-        
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-            border: none;
-            gap: 8px;
-        }
-        
-        .btn-primary {
-            background-color: #3498db;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background-color: #2980b9;
-        }
-        
-        .btn-outline {
-            background-color: #dce73cff;
-            color: black;
-        }
-        
-        .btn-outline:hover {
-            background-color: #b9c331ff;
-        }
-        
-        .btn-danger {
-            background-color: #e74c3c;
-            color: white;
-        }
-        
-        .btn-danger:hover {
-            background-color: #c0392b;
-        }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin — Inquiries / Messages — Star Roofing</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-        /* Gmail-style Search Bar */
-        .search-container {
-            margin-bottom: 20px;
-            position: relative;
-        }
+<style>
+:root{
+  --bg:#f4f7fb;
+  --card:#fff;
+  --accent:#2f80ed; /* blue */
+  --muted:#7a869a;
+  --success:#1abc9c;
+  --danger:#e74c3c;
+  font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+  color: #213040;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);min-height:100vh}
+.main-container{display:flex;gap:24px;padding:20px;max-width:1200px;margin:0 auto}
+.sidebar{
+  width:360px; min-width:280px;
+  display:flex;flex-direction:column;gap:12px;
+}
+.brand{
+  background:var(--card);padding:14px;border-radius:12px;display:flex;align-items:center;gap:12px;box-shadow:0 6px 18px rgba(20,30,60,0.06)
+}
+.brand h2{margin:0;font-size:18px}
+.controls{
+  display:flex;gap:8px;align-items:center;padding:12px;background:var(--card);border-radius:12px;box-shadow:0 6px 18px rgba(20,30,60,0.03)
+}
+.controls input[type="search"]{
+  flex:1;padding:10px 12px;border-radius:8px;border:1px solid #e6eef9;font-size:14px
+}
+.controls button{background:var(--accent);color:#fff;border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
+.list-card{background:var(--card);padding:8px;border-radius:12px;box-shadow:0 6px 18px rgba(20,30,60,0.04);overflow:auto;max-height:68vh}
+.inquiry-item{display:flex;gap:12px;padding:10px;border-radius:8px;align-items:flex-start;border:1px solid transparent;cursor:pointer}
+.inquiry-item:hover{background:#f6fbff;border-color:#e6f0ff}
+.inquiry-meta{flex:1;min-width:0}
+.inquiry-title{font-weight:600;margin:0;font-size:15px}
+.inquiry-sub{color:var(--muted);font-size:13px;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inquiry-time{font-size:12px;color:var(--muted);min-width:80px;text-align:right}
 
-        .search-box {
-            display: flex;
-            align-items: center;
-            background: white;
-            border-radius: 24px;
-            padding: 8px 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border: 1px solid #e0e0e0;
-        }
+.badge-new{background:#eef6ff;color:var(--accent);padding:4px 8px;border-radius:12px;font-size:12px;font-weight:600}
 
-        .search-box:focus-within {
-            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-            border-color: #3498db;
-        }
+.accept-btn{background:#fff;border:1px solid #e6eef9;padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:600}
 
-        .search-icon {
-            color: #5f6368;
-            margin-right: 12px;
-        }
-
-        .search-input {
-            flex: 1;
-            border: none;
-            outline: none;
-            padding: 8px 0;
-            font-size: 14px;
-            background: transparent;
-        }
-
-        .search-actions {
-            display: flex;
-            gap: 8px;
-            margin-left: 12px;
-        }
-
-        .search-action-btn {
-            background: none;
-            border: none;
-            padding: 8px;
-            border-radius: 50%;
-            cursor: pointer;
-            color: #5f6368;
-            transition: all 0.2s;
-        }
-
-        .search-action-btn:hover {
-            background-color: #f1f3f4;
-        }
-
-        /* Gmail-style Filter Chips */
-        .filter-chips {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 20px;
-            align-items: center;
-        }
-
-        .filter-chip {
-            display: inline-flex;
-            align-items: center;
-            background: #e8f0fe;
-            color: #1a73e8;
-            padding: 6px 12px;
-            border-radius: 16px;
-            font-size: 13px;
-            font-weight: 500;
-            gap: 8px;
-        }
-
-        .filter-chip.active {
-            background: #1a73e8;
-            color: white;
-        }
-
-        .filter-chip .remove {
-            cursor: pointer;
-            padding: 2px;
-            border-radius: 50%;
-            transition: background 0.2s;
-        }
-
-        .filter-chip .remove:hover {
-            background: rgba(0,0,0,0.1);
-        }
-
-        .filter-chip.active .remove:hover {
-            background: rgba(255,255,255,0.2);
-        }
-
-        .more-filters-btn {
-            background: none;
-            border: 1px solid #dadce0;
-            padding: 6px 16px;
-            border-radius: 16px;
-            cursor: pointer;
-            font-size: 13px;
-            color: #5f6368;
-            transition: all 0.2s;
-        }
-
-        .more-filters-btn:hover {
-            background: #f8f9fa;
-            border-color: #3498db;
-        }
-
-        /* Filter Dropdown */
-        .filter-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-            padding: 16px;
-            min-width: 200px;
-            z-index: 1000;
-            margin-top: 8px;
-            display: none;
-        }
-
-        .filter-dropdown.active {
-            display: block;
-        }
-
-        .filter-section {
-            margin-bottom: 16px;
-        }
-
-        .filter-section:last-child {
-            margin-bottom: 0;
-        }
-
-        .filter-section h4 {
-            font-size: 14px;
-            color: #5f6368;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        .filter-option {
-            display: flex;
-            align-items: center;
-            padding: 8px 0;
-            cursor: pointer;
-            font-size: 14px;
-            color: #202124;
-            transition: background 0.2s;
-            border-radius: 4px;
-            padding-left: 8px;
-        }
-
-        .filter-option:hover {
-            background: #f8f9fa;
-        }
-
-        .filter-option.active {
-            color: #1a73e8;
-            font-weight: 500;
-        }
-
-        .filter-option input {
-            margin-right: 12px;
-        }
-
-        /* Table styles */
-        .messages-table table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-
-        .messages-table th, .messages-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-
-        .messages-table th {
-            background-color: #3498db;
-            color: white;
-            font-weight: 600;
-        }
-
-        .messages-table tr:hover {
-            background-color: #f9f9f9;
-        }
-
-        .message-unread {
-            background-color: #f8f9fa;
-            font-weight: 600;
-        }
-
-        .message-unread .message-sender {
-            color: #1a365d;
-        }
-
-        /* Pagination */
-        .pagination {
-            margin-top: 20px;
-            text-align: center;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 5px;
-        }
-
-        .page-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #3498db;
-            color: #3498db;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s;
-            min-width: 40px;
-            height: 40px;
-        }
-
-        .page-btn:hover {
-            background-color: #3498db;
-            color: white;
-        }
-
-        .page-btn.active {
-            background-color: #3498db;
-            color: white;
-            font-weight: bold;
-        }
-
-        .page-ellipsis {
-            padding: 8px 12px;
-            color: #7f8c8d;
-            font-weight: bold;
-        }
-        
-        .message-preview {
-            max-width: 300px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        
-        .message-sender {
-            font-size: 16px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin: 0 0 5px 0;
-        }
-        
-        .message-email {
-            color: #7f8c8d;
-            font-size: 14px;
-            line-height: 1.5;
-            margin: 0 0 5px 0;
-        }
-
-        .no-messages {
-            text-align: center;
-            padding: 40px;
-            color: #7f8c8d;
-            background: white;
-            border-radius: 10px;
-        }
-        
-        .table-actions {
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            padding: 15px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-        
-        .clickable-row { 
-            cursor: pointer; 
-        }
-
-        .message-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 12px;
-            padding: 2px 8px;
-            border-radius: 12px;
-            background: #f8f9fa;
-            color: #5f6368;
-        }
-
-        .status-read {
-            background: #e8f6f3;
-            color: #1abc9c;
-        }
-
-        .status-replied {
-            background: #e8f4fd;
-            color: #3498db;
-        }
-
-        /* Modal and other existing styles remain the same */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal.active {
-            display: flex;
-        }
-        
-        .modal-content {
-            background-color: white;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-        }
-        
-        .modal-header {
-            padding: 20px 25px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .modal-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin: 0;
-        }
-        
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #7f8c8d;
-            transition: color 0.3s;
-        }
-        
-        .modal-close:hover {
-            color: #34495e;
-        }
-        
-        .modal-body {
-            padding: 25px;
-            white-space: pre-wrap;
-            line-height: 1.6;
-        }
-        
-        .modal-footer {
-            padding: 20px 25px;
-            border-top: 1px solid #eee;
-            display: flex;
-            justify-content: flex-end;
-            gap: 15px;
-        }
-
-        @media (max-width: 768px) {
-            .page-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 15px;
-            }
-            
-            .search-box {
-                flex-direction: column;
-                gap: 10px;
-                padding: 12px;
-            }
-            
-            .search-actions {
-                margin-left: 0;
-                justify-content: space-between;
-                width: 100%;
-            }
-            
-            .messages-table {
-                overflow-x: auto;
-                display: block;
-                white-space: nowrap;
-            }
-            
-            .table-actions {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            
-            .pagination {
-                gap: 3px;
-            }
-            
-            .page-btn {
-                padding: 6px 10px;
-                font-size: 12px;
-                min-width: 35px;
-                height: 35px;
-            }
-        }
-    </style>
+.chat-area{flex:1;display:flex;flex-direction:column;gap:12px}
+.chat-header{background:var(--card);padding:14px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 6px 18px rgba(20,30,60,0.04)}
+.chat-body{flex:1;background:var(--card);padding:14px;border-radius:12px;overflow:auto;max-height:68vh;box-shadow:0 6px 18px rgba(20,30,60,0.04)}
+.chat-message{max-width:75%;padding:10px 12px;border-radius:10px;margin:8px 0;line-height:1.4}
+.msg-admin{background:#e8f4fd;border:1px solid #d7edff;margin-left:auto}
+.msg-client{background:#f3f5f7;border:1px solid #e6e9ee;margin-right:auto}
+.chat-footer{display:flex;gap:10px;align-items:center}
+.chat-footer textarea{flex:1;padding:12px;border-radius:10px;border:1px solid #e6eef9;min-height:56px;resize:vertical}
+.send-btn{background:var(--accent);color:#fff;border:none;padding:12px 16px;border-radius:10px;cursor:pointer;font-weight:700}
+.small-muted{font-size:13px;color:var(--muted)}
+.empty-state{padding:30px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px}
+@media (max-width:900px){
+  .main-container{flex-direction:column;padding:12px}
+  .sidebar{width:auto}
+}
+</style>
 </head>
 <body>
-  <div class="main-container">
-    <!-- Sidebar -->
-    <?php include '../includes/admin_sidebar.php'; ?>
-    
-    <!-- Main Content -->
-    <div class="main-content">
-      <!-- Top Navigation -->
-      <?php include '../includes/admin_navbar.php'; ?>
-
-      <!-- Messages Content -->
-      <div class="messages-content">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">Contact Messages</h1>
-            <p class="page-description">Manage customer inquiries and messages</p>
-          </div>
-        </div>
-
-        <!-- Gmail-style Search and Filters -->
-        <div class="search-container">
-            <form method="GET" action="" id="searchForm">
-                <!-- Hidden fields for filters -->
-                <input type="hidden" name="status" id="statusFilter" value="<?= htmlspecialchars($status_filter) ?>">
-                <input type="hidden" name="date" id="dateFilter" value="<?= htmlspecialchars($date_filter) ?>">
-                
-                <div class="search-box">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" name="search" placeholder="Search messages..." 
-                          value="<?= htmlspecialchars($search_term) ?>" class="search-input" id="searchInput">
-                    <div class="search-actions">
-                        <button type="button" class="search-action-btn" id="filterToggle">
-                            <i class="fas fa-sliders-h"></i>
-                        </button>
-                        <button type="submit" class="search-action-btn">
-                            <i class="fas fa-search"></i>
-                        </button>
-                        <button type="button" class="search-action-btn" id="clearSearch">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Filter Dropdown -->
-                <div class="filter-dropdown" id="filterDropdown">
-                    <div class="filter-section">
-                        <h4>Status</h4>
-                        <div class="filter-option <?= $status_filter === 'all' ? 'active' : '' ?>" data-filter="status" data-value="all">
-                            <input type="radio" name="filter_status" <?= $status_filter === 'all' ? 'checked' : '' ?>> All messages
-                        </div>
-                        <div class="filter-option <?= $status_filter === 'unread' ? 'active' : '' ?>" data-filter="status" data-value="unread">
-                            <input type="radio" name="filter_status" <?= $status_filter === 'unread' ? 'checked' : '' ?>> Unread
-                        </div>
-                        <div class="filter-option <?= $status_filter === 'read' ? 'active' : '' ?>" data-filter="status" data-value="read">
-                            <input type="radio" name="filter_status" <?= $status_filter === 'read' ? 'checked' : '' ?>> Read
-                        </div>
-                        <div class="filter-option <?= $status_filter === 'replied' ? 'active' : '' ?>" data-filter="status" data-value="replied">
-                            <input type="radio" name="filter_status" <?= $status_filter === 'replied' ? 'checked' : '' ?>> Replied
-                        </div>
-                        <div class="filter-option <?= $status_filter === 'not_replied' ? 'active' : '' ?>" data-filter="status" data-value="not_replied">
-                            <input type="radio" name="filter_status" <?= $status_filter === 'not_replied' ? 'checked' : '' ?>> Not replied
-                        </div>
-                    </div>
-                    
-                    <div class="filter-section">
-                        <h4>Date</h4>
-                        <div class="filter-option <?= $date_filter === 'all' ? 'active' : '' ?>" data-filter="date" data-value="all">
-                            <input type="radio" name="filter_date" <?= $date_filter === 'all' ? 'checked' : '' ?>> Any time
-                        </div>
-                        <div class="filter-option <?= $date_filter === 'today' ? 'active' : '' ?>" data-filter="date" data-value="today">
-                            <input type="radio" name="filter_date" <?= $date_filter === 'today' ? 'checked' : '' ?>> Today
-                        </div>
-                        <div class="filter-option <?= $date_filter === 'yesterday' ? 'active' : '' ?>" data-filter="date" data-value="yesterday">
-                            <input type="radio" name="filter_date" <?= $date_filter === 'yesterday' ? 'checked' : '' ?>> Yesterday
-                        </div>
-                        <div class="filter-option <?= $date_filter === 'week' ? 'active' : '' ?>" data-filter="date" data-value="week">
-                            <input type="radio" name="filter_date" <?= $date_filter === 'week' ? 'checked' : '' ?>> Last 7 days
-                        </div>
-                        <div class="filter-option <?= $date_filter === 'month' ? 'active' : '' ?>" data-filter="date" data-value="month">
-                            <input type="radio" name="filter_date" <?= $date_filter === 'month' ? 'checked' : '' ?>> Last 30 days
-                        </div>
-                        <div class="filter-option <?= $date_filter === 'older' ? 'active' : '' ?>" data-filter="date" data-value="older">
-                            <input type="radio" name="filter_date" <?= $date_filter === 'older' ? 'checked' : '' ?>> Older
-                        </div>
-                    </div>
-                </div>
-            </form>
-
-            <!-- Active Filter Chips -->
-            <div class="filter-chips" id="filterChips">
-                <?php if ($status_filter !== 'all'): ?>
-                    <div class="filter-chip active" data-filter="status" data-value="<?= $status_filter ?>">
-                        <?= ucfirst(str_replace('_', ' ', $status_filter)) ?>
-                        <span class="remove" onclick="removeFilter('status')">×</span>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if ($date_filter !== 'all'): ?>
-                    <div class="filter-chip active" data-filter="date" data-value="<?= $date_filter ?>">
-                        <?= ucfirst($date_filter) ?>
-                        <span class="remove" onclick="removeFilter('date')">×</span>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if (!empty($search_term)): ?>
-                    <div class="filter-chip active" data-filter="search">
-                        Search: "<?= htmlspecialchars($search_term) ?>"
-                        <span class="remove" onclick="removeFilter('search')">×</span>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <?php if (count($messages) > 0): ?>
-          <!-- Action Bar -->
-          <div class="table-actions">
-            <label style="display: flex; align-items: center; gap: 8px;">
-              <input type="checkbox" id="selectAll"> Select All
-            </label>
-            <button class="btn btn-danger" id="archiveBtn">
-              <i class="fas fa-archive"></i> Archive Selected
-            </button>
-          </div>
-
-          <!-- Messages Table -->
-          <form id="messagesForm">
-            <div class="messages-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Select</th>
-                    <th>Sender</th>
-                    <th>Email</th>
-                    <th>Message Preview</th>
-                    <th>Date Received</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php foreach ($messages as $message): ?>
-                    <tr class="clickable-row <?= $message['is_read'] ? '' : 'message-unread' ?>" 
-                        data-id="<?= $message['id'] ?>"
-                        data-name="<?= htmlspecialchars($message['firstname'] . ' ' . $message['lastname']) ?>"
-                        data-email="<?= htmlspecialchars($message['email']) ?>"
-                        data-message="<?= htmlspecialchars($message['message']) ?>"
-                        data-date="<?= $message['created_at'] ?>">
-                      <td>
-                        <input type="checkbox" name="ids[]" value="<?= $message['id'] ?>" onclick="event.stopPropagation();">
-                      </td>
-                      <td>
-                        <div class="message-sender">
-                          <?= htmlspecialchars($message['firstname'] . ' ' . $message['lastname']) ?>
-                        </div>
-                      </td>
-                      <td>
-                        <div class="message-email">
-                          <?= htmlspecialchars($message['email']) ?>
-                        </div>
-                      </td>
-                      <td>
-                        <div class="message-preview" title="<?= htmlspecialchars($message['message']) ?>">
-                          <?= strlen($message['message']) > 50 ? 
-                              substr(htmlspecialchars($message['message']), 0, 50) . '...' : 
-                              htmlspecialchars($message['message']) ?>
-                        </div>
-                      </td>
-                      <td><?= date('M j, Y g:i A', strtotime($message['created_at'])) ?></td>
-                      <td>
-                        <div class="message-status <?= $message['is_replied'] ? 'status-replied' : ($message['is_read'] ? 'status-read' : '') ?>">
-                          <i class="fas fa-<?= $message['is_replied'] ? 'check-circle' : ($message['is_read'] ? 'eye' : 'envelope') ?>"></i>
-                          <?= $message['is_replied'] ? 'Replied' : ($message['is_read'] ? 'Read' : 'Unread') ?>
-                        </div>
-                      </td>
-                      <td>
-                        <button type="button" class="btn btn-outline view-btn" 
-                                data-id="<?= $message['id'] ?>"
-                                onclick="event.stopPropagation(); openMessageModal(
-                                  '<?= htmlspecialchars($message['firstname'] . ' ' . $message['lastname']) ?>',
-                                  '<?= htmlspecialchars($message['email']) ?>',
-                                  `<?= htmlspecialchars(str_replace('`', '\`', $message['message'])) ?>`,
-                                  '<?= $message['created_at'] ?>'
-                                )">
-                          <i class="fas fa-eye"></i> View
-                        </button>
-                      </td>
-                    </tr>
-                  <?php endforeach; ?>
-                </tbody>
-              </table>
-            </div>
-          </form>
-
-          <!-- Smart Pagination -->
-          <div class="pagination">
-            <?php if ($page > 1): ?>
-                <a href="?page=1&search=<?= urlencode($search_term) ?>&status=<?= $status_filter ?>&date=<?= $date_filter ?>" class="page-btn" title="First Page">
-                    <i class="fas fa-angle-double-left"></i>
-                </a>
-                <a href="?page=<?= $page-1 ?>&search=<?= urlencode($search_term) ?>&status=<?= $status_filter ?>&date=<?= $date_filter ?>" class="page-btn" title="Previous Page">
-                    <i class="fas fa-angle-left"></i>
-                </a>
-            <?php endif; ?>
-
-            <?php
-            $start_page = max(1, $page - 2);
-            $end_page = min($total_pages, $page + 2);
-            
-            if ($start_page == 1) {
-                $end_page = min($total_pages, 5);
-            }
-            
-            if ($end_page == $total_pages) {
-                $start_page = max(1, $total_pages - 4);
-            }
-            
-            if ($start_page > 1): ?>
-                <a href="?page=1&search=<?= urlencode($search_term) ?>&status=<?= $status_filter ?>&date=<?= $date_filter ?>" class="page-btn">1</a>
-                <?php if ($start_page > 2): ?>
-                    <span class="page-ellipsis">...</span>
-                <?php endif; ?>
-            <?php endif; ?>
-
-            <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
-                <a href="?page=<?= $i ?>&search=<?= urlencode($search_term) ?>&status=<?= $status_filter ?>&date=<?= $date_filter ?>" 
-                   class="page-btn <?= ($i == $page) ? 'active' : '' ?>">
-                    <?= $i ?>
-                </a>
-            <?php endfor; ?>
-
-            <?php if ($end_page < $total_pages): ?>
-                <?php if ($end_page < $total_pages - 1): ?>
-                    <span class="page-ellipsis">...</span>
-                <?php endif; ?>
-                <a href="?page=<?= $total_pages ?>&search=<?= urlencode($search_term) ?>&status=<?= $status_filter ?>&date=<?= $date_filter ?>" class="page-btn">
-                    <?= $total_pages ?>
-                </a>
-            <?php endif; ?>
-
-            <?php if ($page < $total_pages): ?>
-                <a href="?page=<?= $page+1 ?>&search=<?= urlencode($search_term) ?>&status=<?= $status_filter ?>&date=<?= $date_filter ?>" class="page-btn" title="Next Page">
-                    <i class="fas fa-angle-right"></i>
-                </a>
-                <a href="?page=<?= $total_pages ?>&search=<?= urlencode($search_term) ?>&status=<?= $status_filter ?>&date=<?= $date_filter ?>" class="page-btn" title="Last Page">
-                    <i class="fas fa-angle-double-right"></i>
-                </a>
-            <?php endif; ?>
-          </div>
-        <?php else: ?>
-          <div class="no-messages">
-            <p>No messages found. <?= (!empty($search_term) || $status_filter !== 'all' || $date_filter !== 'all') ? 'Try adjusting your filters.' : 'Check back later for new messages.' ?></p>
-          </div>
-        <?php endif; ?>
+<div class="main-container">
+  <div class="sidebar">
+    <div class="brand">
+      <img src="../assets/logo.png" alt="" style="width:44px;height:44px;border-radius:6px;object-fit:cover">
+      <div>
+        <h2>Star Roofing — Inquiries</h2>
+        <div class="small-muted">Admin panel — Manage & reply</div>
       </div>
+    </div>
+
+    <div class="controls">
+      <form id="searchForm" style="display:flex;gap:8px;flex:1">
+        <input id="searchInput" type="search" name="search" placeholder="Search name, email or message..." value="<?= htmlspecialchars($search_term) ?>">
+        <button type="submit"><i class="fas fa-search"></i></button>
+      </form>
+      <button id="refreshBtn" title="Refresh"><i class="fas fa-sync"></i></button>
+    </div>
+
+    <div class="list-card" id="inquiriesList" aria-live="polite">
+      <!-- items loaded by JS -->
+      <?php foreach ($inquiries as $inq): ?>
+        <div class="inquiry-item" data-id="<?= $inq['id'] ?>">
+          <div class="inquiry-meta">
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="inquiry-title"><?= htmlspecialchars($inq['firstname'] . ' ' . $inq['lastname']) ?></div>
+              <div style="margin-left:auto;font-size:12px;color:var(--muted)"><?= htmlspecialchars($inq['inquiry_type']) ?></div>
+            </div>
+            <div class="inquiry-sub">
+              <?= htmlspecialchars(mb_strimwidth($inq['message'],0,80,'...')) ?>
+            </div>
+            <div class="small-muted" style="margin-top:8px"><?= htmlspecialchars($inq['email']) ?> · <?= htmlspecialchars($inq['phone']) ?></div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+            <div class="inquiry-time"><?= date('M j, g:ia', strtotime($inq['submitted_at'])) ?></div>
+            <button class="accept-btn" onclick="event.stopPropagation(); acceptInquiry(<?= $inq['id'] ?>)">Accept</button>
+          </div>
+        </div>
+      <?php endforeach; ?>
+
+      <?php if (count($inquiries) === 0): ?>
+        <div class="empty-state">No new inquiries. They'll show here when clients submit them.</div>
+      <?php endif; ?>
     </div>
   </div>
 
-  <!-- Message Detail Modal -->
-  <div class="modal" id="messageModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 class="modal-title" id="modalTitle">Message Details</h2>
-        <button class="modal-close" id="closeModal">&times;</button>
+  <div class="chat-area">
+    <div class="chat-header">
+      <div>
+        <div id="chatTitle"><strong>Select an inquiry to start</strong></div>
+        <div class="small-muted" id="chatSubtitle">Accepted inquiries will open a conversation here.</div>
       </div>
-      <div class="modal-body" id="modalBody"></div>
-      <div class="modal-footer">
-        <button class="btn btn-outline" id="closeModalBtn">Close</button>
-        <button class="btn btn-danger" id="archiveSingleBtn">
-          <i class="fas fa-archive"></i> Archive Message
-        </button>
+      <div>
+        <button id="closeThreadBtn" style="display:none;background:#fff;border:1px solid #e6eef9;padding:8px 10px;border-radius:8px">Close</button>
       </div>
     </div>
+
+    <div class="chat-body" id="chatBody">
+      <div class="empty-state">Open an accepted inquiry to view and reply to messages.</div>
+    </div>
+
+    <div class="chat-footer" id="chatFooter" style="display:none">
+      <textarea id="replyInput" placeholder="Write your reply..."></textarea>
+      <button class="send-btn" id="sendBtn">Send</button>
+    </div>
   </div>
+</div>
 
-  <script>
-    let currentMessageId = null;
+<script>
 
-    // Filter functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        const filterToggle = document.getElementById('filterToggle');
-        const filterDropdown = document.getElementById('filterDropdown');
-        const searchForm = document.getElementById('searchForm');
+const API = {
+  fetchInquiries: 'messages-API/fetch_inquiries.php',
+  acceptInquiry: 'messages-API/accept_inquiry.php',
+  fetchThread: 'messages-API/fetch_thread.php',
+  sendReply: 'messages-API/send_reply.php'
+};
 
-        // Toggle filter dropdown
-        filterToggle.addEventListener('click', function(e) {
-            e.stopPropagation();
-            filterDropdown.classList.toggle('active');
-        });
+let currentThreadId = null;
+let pollingThread = null;
+let pollingList = null;
 
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function() {
-            filterDropdown.classList.remove('active');
-        });
+// ---------- Helpers ----------
+function dom(q, ctx=document){ return ctx.querySelector(q) }
+function domAll(q, ctx=document){ return Array.from(ctx.querySelectorAll(q)) }
 
-        // Prevent dropdown from closing when clicking inside
-        filterDropdown.addEventListener('click', function(e) {
-            e.stopPropagation();
-        });
-
-        // Filter option selection
-        document.querySelectorAll('.filter-option').forEach(option => {
-            option.addEventListener('click', function() {
-                const filterType = this.dataset.filter;
-                const filterValue = this.dataset.value;
-                
-                // Update hidden input
-                document.getElementById(filterType + 'Filter').value = filterValue;
-                
-                // Submit form
-                searchForm.submit();
-            });
-        });
-
-        // Clear search
-        document.getElementById('clearSearch').addEventListener('click', function() {
-            document.getElementById('searchInput').value = '';
-            searchForm.submit();
-        });
-
-        // Enter key to search
-        document.getElementById('searchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                searchForm.submit();
-            }
-        });
-    });
-
-    function removeFilter(filterType) {
-        if (filterType === 'search') {
-            document.getElementById('searchInput').value = '';
-        } else {
-            document.getElementById(filterType + 'Filter').value = 'all';
-        }
-        document.getElementById('searchForm').submit();
+// ---------- Load & Poll Inquiries List ----------
+async function loadInquiries() {
+  try {
+    const res = await fetch(API.fetchInquiries + '?search=' + encodeURIComponent(dom('#searchInput').value||''));
+    const js = await res.json();
+    const list = dom('#inquiriesList');
+    list.innerHTML = '';
+    if (!Array.isArray(js) || js.length === 0) {
+      list.innerHTML = '<div class="empty-state">No new inquiries.</div>';
+      return;
     }
-
-    // Modal functionality (existing code)
-    function openMessageModal(name, email, message, date) {
-      const modalTitle = document.getElementById('modalTitle');
-      const modalBody = document.getElementById('modalBody');
-      
-      modalTitle.textContent = `Message from ${name}`;
-      modalBody.innerHTML = `
-        <div style="margin-bottom: 20px;">
-          <strong>Sender:</strong> ${name}<br>
-          <strong>Email:</strong> ${email}<br>
-          <strong>Date:</strong> ${new Date(date).toLocaleString()}
+    for (const i of js) {
+      const item = document.createElement('div');
+      item.className = 'inquiry-item';
+      item.dataset.id = i.id;
+      item.innerHTML = `
+        <div class="inquiry-meta">
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="inquiry-title">${escapeHtml(i.firstname + ' ' + i.lastname)}</div>
+            <div style="margin-left:auto;font-size:12px;color:var(--muted)">${escapeHtml(i.inquiry_type)}</div>
+          </div>
+          <div class="inquiry-sub">${escapeHtml(trim(i.message,80))}</div>
+          <div class="small-muted" style="margin-top:8px">${escapeHtml(i.email)} · ${escapeHtml(i.phone || '')}</div>
         </div>
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #3498db;">
-          <strong>Message:</strong><br>
-          ${message.replace(/\n/g, '<br>')}
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+          <div class="inquiry-time">${formatDate(i.submitted_at)}</div>
+          <button class="accept-btn" onclick="event.stopPropagation(); acceptInquiry(${i.id})">Accept</button>
         </div>
       `;
-      
-      const clickedRow = event.target.closest('.clickable-row');
-      currentMessageId = clickedRow ? clickedRow.dataset.id : null;
-      
-      document.getElementById('messageModal').classList.add('active');
+      item.addEventListener('click', () => openThread(i.id));
+      list.appendChild(item);
     }
+  } catch (err) {
+    console.error('loadInquiries error', err);
+  }
+}
 
-    function closeMessageModal() {
-      document.getElementById('messageModal').classList.remove('active');
-      currentMessageId = null;
+function startListPolling(){
+  if (pollingList) clearInterval(pollingList);
+  pollingList = setInterval(loadInquiries, 3000); // every 3s
+  loadInquiries();
+}
+
+// ---------- Accept Inquiry ----------
+async function acceptInquiry(id){
+  try {
+    const res = await fetch(API.acceptInquiry, {
+      method:'POST',
+      body: new URLSearchParams({id})
+    });
+    const j = await res.json();
+    if (j.success) {
+      // remove item from list UI and open thread
+      // refresh list immediately
+      await loadInquiries();
+      openThread(id);
+      Swal.fire({icon:'success',title:'Accepted',text:'Inquiry accepted. Conversation opened.'});
+    } else {
+      Swal.fire({icon:'error',title:'Error',text:j.message || 'Could not accept inquiry.'});
     }
+  } catch(e){
+    Swal.fire({icon:'error',title:'Error',text:'Network error.'});
+  }
+}
 
-    document.getElementById('closeModal').addEventListener('click', closeMessageModal);
-    document.getElementById('closeModalBtn').addEventListener('click', closeMessageModal);
+// ---------- Thread (chat) ----------
+async function openThread(id){
+  currentThreadId = id;
+  dom('#chatFooter').style.display = 'flex';
+  dom('#closeThreadBtn').style.display = 'inline-block';
+  dom('#chatTitle').innerHTML = '<strong>Conversation</strong>';
+  dom('#chatSubtitle').textContent = 'Loading messages…';
+  // load immediately then start polling
+  await loadThread();
+  if (pollingThread) clearInterval(pollingThread);
+  pollingThread = setInterval(loadThread, 2000); // every 2s for real-time feel
+}
 
-    window.addEventListener('click', function(event) {
-      const modal = document.getElementById('messageModal');
-      if (event.target === modal) {
-        closeMessageModal();
-      }
+async function loadThread(){
+  if (!currentThreadId) return;
+  try {
+    const res = await fetch(API.fetchThread + '?id=' + encodeURIComponent(currentThreadId));
+    const j = await res.json();
+    if (!j || !j.inquiry) return;
+    // render
+    const body = dom('#chatBody');
+    body.innerHTML = '';
+    // inquiry as first message (client)
+    const inq = j.inquiry;
+    const inqNode = document.createElement('div');
+    inqNode.className = 'chat-message msg-client';
+    inqNode.innerHTML = `<strong>${escapeHtml(inq.firstname + ' ' + inq.lastname)}</strong><br>
+                         <small class="small-muted">${formatDate(inq.submitted_at)}</small><div style="margin-top:8px">${nl2br(escapeHtml(inq.message))}</div>`;
+    body.appendChild(inqNode);
+    // replies
+    for (const r of j.replies) {
+      const el = document.createElement('div');
+      el.className = 'chat-message ' + (r.sender === 'admin' ? 'msg-admin' : 'msg-client');
+      el.innerHTML = `<small class="small-muted">${r.sender === 'admin' ? 'You' : 'Client'} • ${formatDate(r.sent_at)}</small>
+                      <div style="margin-top:6px">${nl2br(escapeHtml(r.message))}</div>`;
+      body.appendChild(el);
+    }
+    // scroll to bottom
+    body.scrollTop = body.scrollHeight;
+    dom('#chatSubtitle').textContent = `${inq.email} · ${inq.phone || 'no phone'}`;
+  } catch (err) {
+    console.error('loadThread err', err);
+  }
+}
+
+// ---------- Send reply ----------
+async function sendReply(){
+  const txt = dom('#replyInput').value.trim();
+  if (!currentThreadId || txt.length === 0) return;
+  try {
+    const res = await fetch(API.sendReply, {
+      method:'POST',
+      body: new URLSearchParams({inquiry_id: currentThreadId, message: txt})
     });
+    const j = await res.json();
+    if (j.success) {
+      dom('#replyInput').value = '';
+      await loadThread();
+    } else {
+      Swal.fire({icon:'error',title:'Error',text:j.message || 'Could not send reply.'});
+    }
+  } catch (err) {
+    Swal.fire({icon:'error',title:'Error',text:'Network error.'});
+  }
+}
 
-    // Archive functionality (existing code)
-    document.getElementById('archiveSingleBtn').addEventListener('click', function() {
-      if (!currentMessageId) return;
-      
-      Swal.fire({
-        title: "Archive Message?",
-        text: "This message will be moved to archives.",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Yes, archive it",
-        cancelButtonText: "Cancel"
-      }).then((result) => {
-        if (result.isConfirmed) {
-          const formData = new FormData();
-          formData.append('ids[]', currentMessageId);
-          
-          fetch("archive_messages.php", {
-            method: "POST",
-            body: formData
-          })
-          .then(res => res.text())
-          .then(data => {
-            Swal.fire("Archived!", "Message has been archived.", "success").then(() => {
-              location.reload();
-            });
-          })
-          .catch(err => {
-            Swal.fire("Error", "Something went wrong.", "error");
-          });
-        }
-      });
-    });
+function closeThread(){
+  currentThreadId = null;
+  dom('#chatBody').innerHTML = '<div class="empty-state">Open an accepted inquiry to view and reply to messages.</div>';
+  dom('#chatFooter').style.display = 'none';
+  dom('#closeThreadBtn').style.display = 'none';
+  if (pollingThread) clearInterval(pollingThread);
+}
 
-    document.getElementById("selectAll").addEventListener("change", function() {
-      let checkboxes = document.querySelectorAll('input[name="ids[]"]');
-      checkboxes.forEach(cb => cb.checked = this.checked);
-    });
+// ---------- Utilities ----------
+function nl2br(s){ return s.replace(/\n/g,'<br>') }
+function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',"`":'&#96;'})[c]) }
+function trim(s,n){ if(!s) return ''; return s.length>n? s.substr(0,n-1)+'…':s }
+function formatDate(d){ if(!d) return ''; const dt=new Date(d); return dt.toLocaleString(); }
 
-    document.getElementById("archiveBtn").addEventListener("click", function() {
-      let form = document.getElementById("messagesForm");
-      let formData = new FormData(form);
+// ---------- Bindings ----------
+dom('#searchForm').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  loadInquiries();
+});
+dom('#refreshBtn').addEventListener('click', ()=> loadInquiries());
+dom('#sendBtn').addEventListener('click', sendReply);
+dom('#closeThreadBtn').addEventListener('click', closeThread);
+dom('#replyInput').addEventListener('keypress', function(e){ if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(); } });
 
-      if (!formData.has("ids[]")) {
-        Swal.fire({
-          title: "No Selection",
-          text: "Please select at least one message to archive.",
-          icon: "warning",
-          confirmButtonText: "OK"
-        });
-        return;
-      }
-
-      Swal.fire({
-        title: "Archive Messages?",
-        text: "Selected messages will be moved to archives.",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Yes, archive them",
-        cancelButtonText: "Cancel"
-      }).then((result) => {
-        if (result.isConfirmed) {
-          fetch("archive_messages.php", {
-            method: "POST",
-            body: formData
-          })
-          .then(res => res.text())
-          .then(data => {
-            Swal.fire("Archived!", "Selected messages have been archived.", "success").then(() => {
-              location.reload();
-            });
-          })
-          .catch(err => {
-            Swal.fire("Error", "Something went wrong while archiving messages.", "error");
-          });
-        }
-      });
-    });
-
-    document.querySelectorAll(".clickable-row").forEach(row => {
-      row.addEventListener("click", function() {
-        const name = this.dataset.name;
-        const email = this.dataset.email;
-        const message = this.dataset.message;
-        const date = this.dataset.date;
-        openMessageModal(name, email, message, date);
-      });
-    });
-  </script>
+// init
+startListPolling();
+</script>
 </body>
 </html>
-<?php 
-if (isset($stmt_count)) $stmt_count->close();
-if (isset($stmt)) $stmt->close();
-$conn->close(); 
-?>

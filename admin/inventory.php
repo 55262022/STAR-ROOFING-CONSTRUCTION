@@ -602,14 +602,8 @@ $result = $conn->query($sql);
 </head>
 <body>
     <div class="main-container">
-        <!-- Sidebar -->
-        <?php include '../includes/admin_sidebar.php'; ?>
-        
         <!-- Main Content -->
-        <div class="main-content">
-            <!-- Top Navigation -->
-            <?php include '../includes/admin_navbar.php'; ?>
-            
+        <div class="main-content">           
             <!-- Inventory Content -->
             <div class="inventory-content">
                 <div class="page-header">

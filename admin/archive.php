@@ -315,13 +315,8 @@ function getStockStatus($quantity) {
 </head>
 <body>
     <div class="main-container">
-        <!-- Sidebar -->
-        <?php include '../includes/admin_sidebar.php'; ?>
-        
         <!-- Main Content -->
         <div class="main-content">
-            <!-- Top Navigation -->
-            <?php include '../includes/admin_navbar.php'; ?>
             
             <div class="content-area">
                 <div class="page-header">

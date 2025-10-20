@@ -429,15 +429,9 @@ if (isset($_SESSION['success'])) {
     </style>
 </head>
 <body>
-    <div class="main-container">
-        <!-- Sidebar -->
-        <?php include '../includes/admin_sidebar.php'; ?>
-        
+    <div class="main-container">     
         <!-- Main Content -->
-        <div class="main-content">
-            <!-- Top Navigation -->
-            <?php include '../includes/admin_navbar.php'; ?>
-            
+        <div class="main-content">           
             <!-- Dashboard Content -->
             <div class="dashboard-content">
                 <h1 class="page-title">Reports & Analytics</h1>

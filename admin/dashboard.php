@@ -8,84 +8,89 @@ if (isset($_SESSION['success'])) {
     unset($_SESSION['success']);
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Star Roofing & Construction</title>
+
     <!-- Google Font -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- CSS style -->
+
+    <!-- CSS Styles -->
     <link rel="stylesheet" href="../css/admin_main.css">
     <link rel="stylesheet" href="../css/admin_dashboard.css">
 </head>
+<style>
+    .hidden{
+            display: none;
+        }
+</style>
 <body>
     <div class="main-container">
-        <!-- Sidebar -->
-        <?php include '../includes/admin_sidebar.php'; ?>
         
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Top Navigation -->
-             <?php include '../includes/admin_navbar.php'; ?>
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <?php include '../includes/admin_sidebar.php'; ?>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
             
-            <!-- Dashboard Content -->
-            <div class="dashboard-content">
-                <h1 class="page-title">Dashboard Overview</h1>
-                
-                <!-- Stats Cards -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon clients">
-                            <i class="fas fa-users"></i>
-                        </div>
+            <!-- Top Navigation Bar -->
+            <header class="top-nav">
+                <?php include '../includes/admin_navbar.php'; ?>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard-section" class="section hidden dashboard-content" aria-labelledby="dashboard-title">
+                <h1 id="dashboard-title" class="page-title">Dashboard Overview</h1>
+
+                <!-- Statistics Section -->
+                <section class="stats-grid" aria-label="Dashboard Statistics">
+                    <article class="stat-card">
+                        <div class="stat-icon clients"><i class="fas fa-users"></i></div>
                         <div class="stat-info">
                             <h3>248</h3>
                             <p>Total Clients</p>
                         </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon projects">
-                            <i class="fas fa-hard-hat"></i>
-                        </div>
+                    </article>
+
+                    <article class="stat-card">
+                        <div class="stat-icon projects"><i class="fas fa-hard-hat"></i></div>
                         <div class="stat-info">
                             <h3>54</h3>
                             <p>Active Projects</p>
                         </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon revenue">
-                            <i class="fas fa-dollar-sign"></i>
-                        </div>
+                    </article>
+
+                    <article class="stat-card">
+                        <div class="stat-icon revenue"><i class="fas fa-dollar-sign"></i></div>
                         <div class="stat-info">
                             <h3>₱1.2M</h3>
                             <p>Total Revenue</p>
                         </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon tasks">
-                            <i class="fas fa-tasks"></i>
-                        </div>
+                    </article>
+
+                    <article class="stat-card">
+                        <div class="stat-icon tasks"><i class="fas fa-tasks"></i></div>
                         <div class="stat-info">
                             <h3>18</h3>
                             <p>Pending Tasks</p>
                         </div>
-                    </div>
-                </div>
-                
-                <!-- Recent Projects -->
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Recent Projects</h2>
-                        <a href="#" class="card-action">View All</a>
-                    </div>
+                    </article>
+                </section>
+
+                <!-- Recent Projects Section -->
+                <section class="card recent-projects" aria-labelledby="recent-projects-title">
+                    <header class="card-header">
+                        <h2 id="recent-projects-title" class="card-title">Recent Projects</h2>
+                        <a href="#" class="card-action" aria-label="View all projects">View All</a>
+                    </header>
                     <div class="card-body">
                         <div class="table-responsive">
                             <table>
@@ -138,14 +143,14 @@ if (isset($_SESSION['success'])) {
                             </table>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Recent Clients -->
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Recent Clients</h2>
-                        <a href="#" class="card-action">View All</a>
-                    </div>
+                </section>
+
+                <!-- Recent Clients Section -->
+                <section class="card recent-clients" aria-labelledby="recent-clients-title">
+                    <header class="card-header">
+                        <h2 id="recent-clients-title" class="card-title">Recent Clients</h2>
+                        <a href="#" class="card-action" aria-label="View all clients">View All</a>
+                    </header>
                     <div class="card-body">
                         <div class="table-responsive">
                             <table>
@@ -198,11 +203,44 @@ if (isset($_SESSION['success'])) {
                             </table>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
+                </section>
+            </section>
+            <!-- 3d model page -->
+            <section id="3dmodel-section" class="section hidden">
+                <iframe src="3dmodel.php" width="100%" height="100%" style="border:none; min-height:90vh;"></iframe>
+            </section>
+            <!-- inventory page -->
+            <section id="inventory-section" class="section hidden">
+                <iframe src="inventory.php" width="100%" height="100%" style="border:none; min-height:90vh;"></iframe>
+            </section>
+            <!-- estimation page -->
+            <section id="estimation-section" class="section hidden">
+                <iframe src="estimation.php" width="100%" height="100%" style="border:none; min-height:90vh;"></iframe>
+            </section>
+            <!-- employees page -->
+            <section id="employees-section" class="section hidden">
+                <iframe src="employees.php" width="100%" height="100%" style="border:none; min-height:90vh;"></iframe>
+            </section>
+            <!-- clients page -->
+            <section id="clients-section" class="section hidden">
+                <iframe src="clients.php" width="100%" height="100%" style="border:none; min-height:90vh;"></iframe>
+            </section>
+            <!-- messages page -->
+            <section id="messages-section" class="section hidden">
+                <iframe src="messages.php" width="100%" height="100%" style="border:none; min-height:90vh;"></iframe>
+            </section>
+            <!-- reports page -->
+            <section id="reports-section" class="section hidden">
+                <iframe src="reports.php" width="100%" height="100%" style="border:none; min-height:90vh;"></iframe>
+            </section>
+            <!-- archive page -->
+            <section id="archive-section" class="section hidden">
+                <iframe src="archive.php" width="100%" height="100%" style="border:none; min-height:90vh;"></iframe>
+            </section>
+        </main>
     </div>
 
+    <!-- SweetAlert for Welcome Message -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
     <?php if (!empty($welcome_message)): ?>
@@ -215,6 +253,5 @@ if (isset($_SESSION['success'])) {
         });
     <?php endif; ?>
     </script>
-
 </body>
 </html>

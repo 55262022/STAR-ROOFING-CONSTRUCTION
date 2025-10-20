@@ -38,9 +38,8 @@ require_once '../database/starroofing_db.php';
 
 <body class="bg-light">
 <div class="main-container">
-  <?php include '../includes/admin_sidebar.php'; ?>
+
   <div class="main-content">
-    <?php include '../includes/admin_navbar.php'; ?>
 
     <div class="container py-5">
       <h2 class="text-center mb-4">Roof Estimation Tool</h2>

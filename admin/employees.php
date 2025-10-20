@@ -580,14 +580,10 @@ if ($result && $result->num_rows > 0) {
 </head>
 <body>
     <div class="main-container">
-        <!-- Sidebar -->
-        <?php include '../includes/admin_sidebar.php'; ?>
-        
+   
         <!-- Main Content -->
         <div class="main-content">
-            <!-- Top Navigation -->
-            <?php include '../includes/admin_navbar.php'; ?>
-            
+     
             <!-- Employee Content -->
             <div class="employee-content">
                 <div class="page-header">
