@@ -14,13 +14,10 @@ if (!$product) die('Product not found.');
 
 $modelPathFromDb = $product['model_path'] ?? null;
 $fullModelPath = $_SERVER['DOCUMENT_ROOT'] . '/STARROOFING/' . ltrim($modelPathFromDb, '/');
-<<<<<<< HEAD
+
 $modelPath = ($modelPathFromDb && file_exists($fullModelPath) && is_file($fullModelPath))
     ? '/STARROOFING/' . ltrim($modelPathFromDb, '/')
-=======
-$modelPath = ($modelPathFromDb && file_exists($fullModelPath) && is_file($fullModelPath)) 
-    ? '/STARROOFING/' . ltrim($modelPathFromDb, '/') 
->>>>>>> 48c7b5a5dc63f22b44e88ea6bb7e6c68e5ec7da4
+
     : null;
 
 $imagePathFromDb = $product['image_path'] ?? 'images/no-image.png';
@@ -102,79 +99,49 @@ button[type="submit"]:hover { background:#2c5282; }
             <h3 class="section-title" style="margin-top:10px; color:#1a365d;">Address Information</h3>
 
             <div class="address-group">
-            <div class="form-group full-width">
-                <label for="region">Region *</label>
-                <select id="region" name="region_code" required>
-<<<<<<< HEAD
-                    <option value="">Select Region</option>
-=======
-                <option value="">Select Region</option>
->>>>>>> 48c7b5a5dc63f22b44e88ea6bb7e6c68e5ec7da4
-                </select>
-                <input type="hidden" id="region_name" name="region_name" value="">
-            </div>
-
-            <div class="form-row" style="display:flex; gap:15px;">
-                <div class="form-group" style="flex:1;">
-<<<<<<< HEAD
-                    <label for="province">Province *</label>
-                    <select id="province" name="province_code" required disabled>
-                        <option value="">Select Province</option>
+                <!-- Region -->
+                <div class="form-group full-width">
+                    <label for="region">Region *</label>
+                    <select id="region" name="region_code" required>
+                        <option value="">Select Region</option>
                     </select>
-                    <input type="hidden" id="province_name" name="province_name" value="">
+                    <input type="hidden" id="region_name" name="region_name" value="">
                 </div>
 
-                <div class="form-group" style="flex:1;">
-                    <label for="city">City *</label>
-                    <select id="city" name="city_code" required disabled>
-                        <option value="">Select City</option>
-                    </select>
-                    <input type="hidden" id="city_name" name="city_name" value="">
-=======
-                <label for="province">Province *</label>
-                <select id="province" name="province_code" required disabled>
-                    <option value="">Select Province</option>
-                </select>
-                <input type="hidden" id="province_name" name="province_name" value="">
+                <!-- Province & City -->
+                <div class="form-row" style="display:flex; gap:15px;">
+                    <div class="form-group" style="flex:1;">
+                        <label for="province">Province *</label>
+                        <select id="province" name="province_code" required disabled>
+                            <option value="">Select Province</option>
+                        </select>
+                        <input type="hidden" id="province_name" name="province_name" value="">
+                    </div>
+
+                    <div class="form-group" style="flex:1;">
+                        <label for="city">City *</label>
+                        <select id="city" name="city_code" required disabled>
+                            <option value="">Select City</option>
+                        </select>
+                        <input type="hidden" id="city_name" name="city_name" value="">
+                    </div>
                 </div>
 
-                <div class="form-group" style="flex:1;">
-                <label for="city">City *</label>
-                <select id="city" name="city_code" required disabled>
-                    <option value="">Select City</option>
-                </select>
-                <input type="hidden" id="city_name" name="city_name" value="">
->>>>>>> 48c7b5a5dc63f22b44e88ea6bb7e6c68e5ec7da4
-                </div>
-            </div>
+                <!-- Barangay & Street -->
+                <div class="form-row" style="display:flex; gap:15px;">
+                    <div class="form-group" style="flex:1;">
+                        <label for="barangay">Barangay *</label>
+                        <select id="barangay" name="barangay_code" required disabled>
+                            <option value="">Select Barangay</option>
+                        </select>
+                        <input type="hidden" id="barangay_name" name="barangay_name" value="">
+                    </div>
 
-            <div class="form-row" style="display:flex; gap:15px;">
-                <div class="form-group" style="flex:1;">
-<<<<<<< HEAD
-                    <label for="barangay">Barangay *</label>
-                    <select id="barangay" name="barangay_code" required disabled>
-                        <option value="">Select Barangay</option>
-                    </select>
-                    <input type="hidden" id="barangay_name" name="barangay_name" value="">
+                    <div class="form-group" style="flex:1;">
+                        <label for="street">Street</label>
+                        <textarea id="street" name="street" placeholder="House No., Street Name, Subdivision, etc."></textarea>
+                    </div>
                 </div>
-
-                <div class="form-group" style="flex:1;">
-                    <label for="street">Street</label>
-                    <textarea id="street" name="street" placeholder="House No., Street Name, etc."></textarea>
-=======
-                <label for="barangay">Barangay *</label>
-                <select id="barangay" name="barangay_code" required disabled>
-                    <option value="">Select Barangay</option>
-                </select>
-                <input type="hidden" id="barangay_name" name="barangay_name" value="">
-                </div>
-
-                <div class="form-group" style="flex:1;">
-                <label for="street">Street Address *</label>
-                <textarea id="street" name="street" placeholder="House No., Street Name, Subdivision, etc." required></textarea>
->>>>>>> 48c7b5a5dc63f22b44e88ea6bb7e6c68e5ec7da4
-                </div>
-            </div>
             </div>
         </div>
 
@@ -192,10 +159,7 @@ button[type="submit"]:hover { background:#2c5282; }
     </form>
     </div>
 </div>
-<<<<<<< HEAD
 
-=======
->>>>>>> 48c7b5a5dc63f22b44e88ea6bb7e6c68e5ec7da4
 <!-- Address API -->
 <script src="../../javascript/inquiry-address-selector.js"></script>
 
