@@ -1147,7 +1147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="../javascript/ph-address-selector.js"></script>
+    <script src="../javascript/register-address-selector.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             // Status filter buttons

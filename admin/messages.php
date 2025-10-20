@@ -2,38 +2,33 @@
 include '../authentication/auth.php';
 require_once '../database/starroofing_db.php';
 
-// Basic pagination / search kept but primary UI is a two-column inbox+chat
+// Basic pagination/search
 $search_term = $_GET['search'] ?? '';
 $page = max(1, (int)($_GET['page'] ?? 1));
 $limit = 10;
 $offset = ($page - 1) * $limit;
 
-// Helper: ensure replies table exists and is_accepted column exists (attempt, but won't break if fails)
+// Ensure replies table exists
 $conn->query("
-    CREATE TABLE IF NOT EXISTS replies (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        inquiry_id INT NOT NULL,
-        sender ENUM('admin','client') NOT NULL,
-        message TEXT NOT NULL,
-        sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (inquiry_id) REFERENCES inquiries(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS replies (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    inquiry_id INT NOT NULL,
+    sender ENUM('admin','client') NOT NULL,
+    message TEXT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (inquiry_id) REFERENCES inquiries(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 ");
 
-if (!$conn->query("SHOW COLUMNS FROM inquiries LIKE 'is_accepted'")->fetch_assoc()) {
-    // try to add column; if fails (permissions) it's ok — accept endpoint also attempts
-    @$conn->query("ALTER TABLE inquiries ADD COLUMN is_accepted TINYINT(1) DEFAULT 0");
-}
-
-// We'll fetch initial page load data server-side for SEO and fallback
+// Fetch initial inquiries for server-side render
 $inquiries = [];
-$sql = "SELECT id, firstname, lastname, email, phone, inquiry_type, message, submitted_at, COALESCE(is_accepted,0) as is_accepted
+$sql = "SELECT id, firstname, lastname, email, phone, message, submitted_at
         FROM inquiries
         WHERE COALESCE(is_accepted,0) = 0
         ORDER BY submitted_at DESC
         LIMIT ? OFFSET ?";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("ii", $limit, $offset);
+$stmt->bind_param('ii',$limit,$offset);
 $stmt->execute();
 $res = $stmt->get_result();
 $inquiries = $res->fetch_all(MYSQLI_ASSOC);
@@ -50,10 +45,11 @@ $stmt->close();
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
+<style>
 :root{
   --bg:#f4f7fb;
   --card:#fff;
-  --accent:#2f80ed; /* blue */
+  --accent:#2f80ed;
   --muted:#7a869a;
   --success:#1abc9c;
   --danger:#e74c3c;
@@ -106,6 +102,7 @@ body{margin:0;background:var(--bg);min-height:100vh}
   .sidebar{width:auto}
 }
 </style>
+
 </head>
 <body>
 <div class="main-container">
@@ -127,17 +124,11 @@ body{margin:0;background:var(--bg);min-height:100vh}
     </div>
 
     <div class="list-card" id="inquiriesList" aria-live="polite">
-      <!-- items loaded by JS -->
       <?php foreach ($inquiries as $inq): ?>
         <div class="inquiry-item" data-id="<?= $inq['id'] ?>">
           <div class="inquiry-meta">
-            <div style="display:flex;gap:8px;align-items:center">
-              <div class="inquiry-title"><?= htmlspecialchars($inq['firstname'] . ' ' . $inq['lastname']) ?></div>
-              <div style="margin-left:auto;font-size:12px;color:var(--muted)"><?= htmlspecialchars($inq['inquiry_type']) ?></div>
-            </div>
-            <div class="inquiry-sub">
-              <?= htmlspecialchars(mb_strimwidth($inq['message'],0,80,'...')) ?>
-            </div>
+            <div class="inquiry-title"><?= htmlspecialchars($inq['firstname'] . ' ' . $inq['lastname']) ?></div>
+            <div class="inquiry-sub"><?= htmlspecialchars(mb_strimwidth($inq['message'],0,80,'...')) ?></div>
             <div class="small-muted" style="margin-top:8px"><?= htmlspecialchars($inq['email']) ?> · <?= htmlspecialchars($inq['phone']) ?></div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
@@ -176,179 +167,164 @@ body{margin:0;background:var(--bg);min-height:100vh}
 </div>
 
 <script>
-
-const API = {
-  fetchInquiries: 'messages-API/fetch_inquiries.php',
-  acceptInquiry: 'messages-API/accept_inquiry.php',
-  fetchThread: 'messages-API/fetch_thread.php',
-  sendReply: 'messages-API/send_reply.php'
-};
-
 let currentThreadId = null;
-let pollingThread = null;
-let pollingList = null;
 
 // ---------- Helpers ----------
-function dom(q, ctx=document){ return ctx.querySelector(q) }
-function domAll(q, ctx=document){ return Array.from(ctx.querySelectorAll(q)) }
+const dom = (q,ctx=document)=>ctx.querySelector(q);
+const escapeHtml = s=>s? String(s).replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',"`":'&#96;'})[c]):'';
+const nl2br = s=>s.replace(/\n/g,'<br>');
+const formatDate = d=>d? new Date(d).toLocaleString():'';
+const trim = (s,n)=>s.length>n? s.substr(0,n-1)+'…':s;
 
-// ---------- Load & Poll Inquiries List ----------
-async function loadInquiries() {
+// ---------- Load Inquiries ----------
+async function loadInquiries(){
   try {
-    const res = await fetch(API.fetchInquiries + '?search=' + encodeURIComponent(dom('#searchInput').value||''));
-    const js = await res.json();
+    const searchTerm = encodeURIComponent(dom('#searchInput').value||'');
+    const res = await fetch(`messages-API/fetch_inquiries.php?search=${searchTerm}`);
+    const data = await res.json();
+
     const list = dom('#inquiriesList');
     list.innerHTML = '';
-    if (!Array.isArray(js) || js.length === 0) {
+
+    if(!data.success || !data.inquiries || data.inquiries.length === 0){
       list.innerHTML = '<div class="empty-state">No new inquiries.</div>';
       return;
     }
-    for (const i of js) {
+
+    data.inquiries.forEach(i => {
       const item = document.createElement('div');
       item.className = 'inquiry-item';
       item.dataset.id = i.id;
       item.innerHTML = `
         <div class="inquiry-meta">
-          <div style="display:flex;gap:8px;align-items:center">
-            <div class="inquiry-title">${escapeHtml(i.firstname + ' ' + i.lastname)}</div>
-            <div style="margin-left:auto;font-size:12px;color:var(--muted)">${escapeHtml(i.inquiry_type)}</div>
-          </div>
+          <div class="inquiry-title">${escapeHtml(i.firstname+' '+i.lastname)}</div>
           <div class="inquiry-sub">${escapeHtml(trim(i.message,80))}</div>
-          <div class="small-muted" style="margin-top:8px">${escapeHtml(i.email)} · ${escapeHtml(i.phone || '')}</div>
+          <div class="small-muted" style="margin-top:8px">${escapeHtml(i.email)} · ${escapeHtml(i.phone||'')}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
           <div class="inquiry-time">${formatDate(i.submitted_at)}</div>
           <button class="accept-btn" onclick="event.stopPropagation(); acceptInquiry(${i.id})">Accept</button>
         </div>
       `;
-      item.addEventListener('click', () => openThread(i.id));
+      item.addEventListener('click',()=>openThread(i.id));
       list.appendChild(item);
-    }
-  } catch (err) {
-    console.error('loadInquiries error', err);
-  }
-}
+    });
 
-function startListPolling(){
-  if (pollingList) clearInterval(pollingList);
-  pollingList = setInterval(loadInquiries, 3000); // every 3s
-  loadInquiries();
+  } catch(e){
+    console.error('loadInquiries error', e);
+  }
 }
 
 // ---------- Accept Inquiry ----------
 async function acceptInquiry(id){
   try {
-    const res = await fetch(API.acceptInquiry, {
+    const res = await fetch('messages-API/accept_inquiry.php', {
       method:'POST',
-      body: new URLSearchParams({id})
+      body:new URLSearchParams({id})
     });
     const j = await res.json();
-    if (j.success) {
-      // remove item from list UI and open thread
-      // refresh list immediately
+    if(j.success){
       await loadInquiries();
       openThread(id);
-      Swal.fire({icon:'success',title:'Accepted',text:'Inquiry accepted. Conversation opened.'});
+      alert('Inquiry accepted. Conversation opened.');
     } else {
-      Swal.fire({icon:'error',title:'Error',text:j.message || 'Could not accept inquiry.'});
+      alert(j.message || 'Could not accept inquiry.');
     }
   } catch(e){
-    Swal.fire({icon:'error',title:'Error',text:'Network error.'});
+    alert('Network error.');
   }
 }
 
-// ---------- Thread (chat) ----------
+// ---------- Load Thread ----------
 async function openThread(id){
   currentThreadId = id;
-  dom('#chatFooter').style.display = 'flex';
-  dom('#closeThreadBtn').style.display = 'inline-block';
-  dom('#chatTitle').innerHTML = '<strong>Conversation</strong>';
-  dom('#chatSubtitle').textContent = 'Loading messages…';
-  // load immediately then start polling
+  dom('#chatFooter').style.display='flex';
+  dom('#closeThreadBtn').style.display='inline-block';
+  dom('#chatTitle').innerHTML='<strong>Conversation</strong>';
+  dom('#chatSubtitle').textContent='Loading messages…';
   await loadThread();
-  if (pollingThread) clearInterval(pollingThread);
-  pollingThread = setInterval(loadThread, 2000); // every 2s for real-time feel
 }
 
 async function loadThread(){
-  if (!currentThreadId) return;
+  if(!currentThreadId) return;
   try {
-    const res = await fetch(API.fetchThread + '?id=' + encodeURIComponent(currentThreadId));
-    const j = await res.json();
-    if (!j || !j.inquiry) return;
-    // render
+    const res = await fetch(`messages-API/fetch_thread.php?id=${currentThreadId}`);
+    const data = await res.json();
+
     const body = dom('#chatBody');
-    body.innerHTML = '';
-    // inquiry as first message (client)
-    const inq = j.inquiry;
-    const inqNode = document.createElement('div');
-    inqNode.className = 'chat-message msg-client';
-    inqNode.innerHTML = `<strong>${escapeHtml(inq.firstname + ' ' + inq.lastname)}</strong><br>
-                         <small class="small-muted">${formatDate(inq.submitted_at)}</small><div style="margin-top:8px">${nl2br(escapeHtml(inq.message))}</div>`;
-    body.appendChild(inqNode);
-    // replies
-    for (const r of j.replies) {
-      const el = document.createElement('div');
-      el.className = 'chat-message ' + (r.sender === 'admin' ? 'msg-admin' : 'msg-client');
-      el.innerHTML = `<small class="small-muted">${r.sender === 'admin' ? 'You' : 'Client'} • ${formatDate(r.sent_at)}</small>
-                      <div style="margin-top:6px">${nl2br(escapeHtml(r.message))}</div>`;
-      body.appendChild(el);
+    body.innerHTML='';
+
+    if(!data.success || !data.inquiry){
+      body.innerHTML='<div class="empty-state">No messages yet.</div>';
+      return;
     }
-    // scroll to bottom
+
+    const allMessages = [
+      {sender:'client', message:data.inquiry.message, created_at:data.inquiry.submitted_at, author:data.inquiry.firstname+' '+data.inquiry.lastname},
+      ...data.replies.map(r=>({sender:r.sender, message:r.message, created_at:r.sent_at, author:r.sender==='admin'?'Admin':'Client'}))
+    ];
+
+    allMessages.forEach(msg=>{
+      const node = document.createElement('div');
+      node.className='chat-message '+(msg.sender==='admin'?'msg-admin':'msg-client');
+      node.innerHTML=`<div class="chat-author">${escapeHtml(msg.author)}</div>
+                      <div class="chat-text">${nl2br(escapeHtml(msg.message))}</div>
+                      <div class="chat-time">${formatDate(msg.created_at)}</div>`;
+      body.appendChild(node);
+    });
+
     body.scrollTop = body.scrollHeight;
-    dom('#chatSubtitle').textContent = `${inq.email} · ${inq.phone || 'no phone'}`;
-  } catch (err) {
-    console.error('loadThread err', err);
+    dom('#chatSubtitle').textContent='Conversation loaded';
+
+  } catch(e){
+    console.error('loadThread error', e);
   }
 }
 
-// ---------- Send reply ----------
-async function sendReply(){
-  const txt = dom('#replyInput').value.trim();
-  if (!currentThreadId || txt.length === 0) return;
+// ---------- Send Reply ----------
+dom('#sendBtn').addEventListener('click', async ()=>{
+  const msg = dom('#replyInput').value.trim();
+  if(!msg || !currentThreadId) return;
+  dom('#sendBtn').disabled=true;
+
   try {
-    const res = await fetch(API.sendReply, {
+    const res = await fetch('messages-API/send_reply.php',{
       method:'POST',
-      body: new URLSearchParams({inquiry_id: currentThreadId, message: txt})
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({inquiry_id:currentThreadId,message:msg})
     });
     const j = await res.json();
-    if (j.success) {
-      dom('#replyInput').value = '';
+    if(j.success){
+      dom('#replyInput').value='';
       await loadThread();
     } else {
-      Swal.fire({icon:'error',title:'Error',text:j.message || 'Could not send reply.'});
+      alert(j.message || 'Could not send reply.');
     }
-  } catch (err) {
-    Swal.fire({icon:'error',title:'Error',text:'Network error.'});
+  } catch(e){
+    alert('Network error.');
+  } finally {
+    dom('#sendBtn').disabled=false;
   }
-}
-
-function closeThread(){
-  currentThreadId = null;
-  dom('#chatBody').innerHTML = '<div class="empty-state">Open an accepted inquiry to view and reply to messages.</div>';
-  dom('#chatFooter').style.display = 'none';
-  dom('#closeThreadBtn').style.display = 'none';
-  if (pollingThread) clearInterval(pollingThread);
-}
-
-// ---------- Utilities ----------
-function nl2br(s){ return s.replace(/\n/g,'<br>') }
-function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',"`":'&#96;'})[c]) }
-function trim(s,n){ if(!s) return ''; return s.length>n? s.substr(0,n-1)+'…':s }
-function formatDate(d){ if(!d) return ''; const dt=new Date(d); return dt.toLocaleString(); }
-
-// ---------- Bindings ----------
-dom('#searchForm').addEventListener('submit', (e)=>{
-  e.preventDefault();
-  loadInquiries();
 });
-dom('#refreshBtn').addEventListener('click', ()=> loadInquiries());
-dom('#sendBtn').addEventListener('click', sendReply);
-dom('#closeThreadBtn').addEventListener('click', closeThread);
-dom('#replyInput').addEventListener('keypress', function(e){ if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(); } });
 
-// init
-startListPolling();
+// ---------- Close Thread ----------
+dom('#closeThreadBtn').addEventListener('click',()=>{
+  currentThreadId=null;
+  dom('#chatBody').innerHTML='<div class="empty-state">Open an accepted inquiry to view and reply to messages.</div>';
+  dom('#chatFooter').style.display='none';
+  dom('#closeThreadBtn').style.display='none';
+  dom('#chatTitle').innerHTML='<strong>Select an inquiry to start</strong>';
+  dom('#chatSubtitle').textContent='Accepted inquiries will open a conversation here.';
+});
+
+// ---------- Search & Refresh ----------
+dom('#searchForm').addEventListener('submit',e=>{e.preventDefault(); loadInquiries();});
+dom('#refreshBtn').addEventListener('click',()=>loadInquiries());
+
+// ---------- Init ----------
+loadInquiries();
+setInterval(loadInquiries,5000); // optional polling
+
 </script>
 </body>
 </html>

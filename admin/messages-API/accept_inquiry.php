@@ -3,30 +3,23 @@ include '../../authentication/auth.php';
 require_once '../../database/starroofing_db.php';
 header('Content-Type: application/json');
 
+// Get inquiry ID
 $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
 if (!$id) {
-    echo json_encode(['success'=>false,'message'=>'Missing id']);
+    echo json_encode(['success' => false, 'message' => 'Missing inquiry ID']);
     exit;
 }
 
-// ensure column exists
-$colExists = $conn->query("SHOW COLUMNS FROM inquiries LIKE 'is_accepted'")->fetch_assoc();
-if (!$colExists) {
-    @$conn->query("ALTER TABLE inquiries ADD COLUMN is_accepted TINYINT(1) DEFAULT 0");
-}
-
-// update
+// Update inquiry to accepted
 $stmt = $conn->prepare("UPDATE inquiries SET is_accepted = 1 WHERE id = ?");
-if (!$stmt) {
-    echo json_encode(['success'=>false,'message'=>$conn->error]);
-    exit;
-}
-$stmt->bind_param('i',$id);
+$stmt->bind_param('i', $id);
 $ok = $stmt->execute();
 $stmt->close();
 
 if ($ok) {
-    echo json_encode(['success'=>true]);
+    // Return success in a consistent format
+    echo json_encode(['success' => true]);
 } else {
-    echo json_encode(['success'=>false,'message'=>'Could not update']);
+    echo json_encode(['success' => false, 'message' => 'Failed to accept inquiry']);
 }
+?>

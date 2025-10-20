@@ -248,7 +248,6 @@ require_once '../database/starroofing_db.php';
     </aside>
   </div>
 </div>
-
 <!-- Three.js (ESM) and utils (module import) -->
 <script type="module">
   import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js";

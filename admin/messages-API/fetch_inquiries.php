@@ -6,7 +6,7 @@ header('Content-Type: application/json');
 $search = $_GET['search'] ?? '';
 $limit = 50;
 
-$sql = "SELECT id, firstname, lastname, email, phone, inquiry_type, message, submitted_at
+$sql = "SELECT id, firstname, lastname, email, phone, message, submitted_at
         FROM inquiries
         WHERE COALESCE(is_accepted,0) = 0";
 
@@ -18,18 +18,25 @@ if (strlen($search) > 0) {
     $params = [$like,$like,$like,$like];
     $types='ssss';
 }
-$sql .= " ORDER BY submitted_at DESC LIMIT ?"; 
-$params[] = $limit; $types .= 'i';
+
+$sql .= " ORDER BY submitted_at DESC LIMIT ?";
+$params[] = $limit; 
+$types .= 'i';
 
 $stmt = $conn->prepare($sql);
-if ($types) {
+if ($params) {
     $stmt->bind_param($types, ...$params);
-} else {
-    $stmt->bind_param('i', $limit);
 }
 $stmt->execute();
 $res = $stmt->get_result();
 $data = $res->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
-echo json_encode($data);
+// Wrap the response in a standard structure
+$response = [
+    'success' => true,
+    'inquiries' => $data
+];
+
+echo json_encode($response);
+?>
