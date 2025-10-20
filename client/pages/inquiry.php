@@ -56,7 +56,9 @@ button[type="submit"]:hover { background:#2c5282; }
 </head>
 <body>
 
-<a href="item-details.php" class="back"><i class="fa fa-arrow-left"></i> Back</a>
+<a href="item-details.php?product_id=<?= urlencode($product_id) ?>" class="back">
+  <i class="fa fa-arrow-left"></i> Back
+</a>
 
 <div class="page-container">
     <!-- Product / 3D Model -->
@@ -79,31 +81,81 @@ button[type="submit"]:hover { background:#2c5282; }
 
     <!-- Inquiry Form -->
     <div class="inquiry-card">
-        <h2>Make an Inquiry</h2>
-        <form id="inquiryForm">
-            <input type="hidden" name="product_id" value="<?= $product_id ?>">
-            <div class="inquiry-form">
-                <div class="form-group"><label>First Name</label><input type="text" name="firstname" required></div>
-                <div class="form-group"><label>Last Name</label><input type="text" name="lastname" required></div>
-                <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
-                <div class="form-group"><label>Phone</label><input type="tel" name="phone" required></div>
-                <div class="form-group full-width"><label>Type of Inquiry</label>
-                    <select name="inquiry_type" required>
-                        <option value="" disabled selected>Select Inquiry Type</option>
-                        <option value="residential">Residential Construction</option>
-                        <option value="commercial">Commercial Construction</option>
-                        <option value="renovation">Renovation Services</option>
-                        <option value="consultation">Consultation</option>
-                        <option value="quotation">Quotation Request</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group full-width"><label>Your Inquiry</label><textarea name="message" required></textarea></div>
-                <div class="button-container"><button type="submit"><i class="fa fa-paper-plane"></i> Submit Inquiry</button></div>
+    <h2>Make an Inquiry</h2>
+    <form id="inquiryForm">
+        <input type="hidden" name="product_id" value="<?= $product_id ?>">
+
+        <div class="inquiry-form">
+        <!-- Personal Info -->
+        <div class="form-group"><label>First Name</label><input type="text" name="firstname" required></div>
+        <div class="form-group"><label>Last Name</label><input type="text" name="lastname" required></div>
+        <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
+        <div class="form-group"><label>Phone</label><input type="tel" name="phone" required></div>
+
+        <!-- Address Section -->
+        <div class="form-section full-width">
+            <h3 class="section-title" style="margin-top:10px; color:#1a365d;">Address Information</h3>
+
+            <div class="address-group">
+            <div class="form-group full-width">
+                <label for="region">Region *</label>
+                <select id="region" name="region_code" required>
+                <option value="">Select Region</option>
+                </select>
+                <input type="hidden" id="region_name" name="region_name" value="">
             </div>
-        </form>
+
+            <div class="form-row" style="display:flex; gap:15px;">
+                <div class="form-group" style="flex:1;">
+                <label for="province">Province *</label>
+                <select id="province" name="province_code" required disabled>
+                    <option value="">Select Province</option>
+                </select>
+                <input type="hidden" id="province_name" name="province_name" value="">
+                </div>
+
+                <div class="form-group" style="flex:1;">
+                <label for="city">City *</label>
+                <select id="city" name="city_code" required disabled>
+                    <option value="">Select City</option>
+                </select>
+                <input type="hidden" id="city_name" name="city_name" value="">
+                </div>
+            </div>
+
+            <div class="form-row" style="display:flex; gap:15px;">
+                <div class="form-group" style="flex:1;">
+                <label for="barangay">Barangay *</label>
+                <select id="barangay" name="barangay_code" required disabled>
+                    <option value="">Select Barangay</option>
+                </select>
+                <input type="hidden" id="barangay_name" name="barangay_name" value="">
+                </div>
+
+                <div class="form-group" style="flex:1;">
+                <label for="street">Street Address *</label>
+                <textarea id="street" name="street" placeholder="House No., Street Name, Subdivision, etc." required></textarea>
+                </div>
+            </div>
+            </div>
+        </div>
+
+        <!-- Message -->
+        <div class="form-group full-width">
+            <label>Your Inquiry</label>
+            <textarea name="message" required></textarea>
+        </div>
+
+        <!-- Button -->
+        <div class="button-container">
+            <button type="submit"><i class="fa fa-paper-plane"></i> Submit Inquiry</button>
+        </div>
+        </div>
+    </form>
     </div>
 </div>
+<!-- Address API -->
+<script src="../../javascript/inquiry-address-selector.js"></script>
 
 <script>
 $(document).ready(function(){

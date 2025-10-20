@@ -249,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- SweetAlert + Address Logic -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="../js/ph-address.js"></script>
+    <script src="../javascript/register-address-selector.js"></script>
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
