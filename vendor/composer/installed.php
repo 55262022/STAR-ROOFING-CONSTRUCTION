@@ -3,7 +3,7 @@
         'name' => 'starroofing/project',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'ef5920be0f6b6355dbf34d63f32f15fe4cb5a994',
+        'reference' => 'a2904fddfb1cceb5cd155870c555c7a4fe895b72',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -130,7 +130,7 @@
         'starroofing/project' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'ef5920be0f6b6355dbf34d63f32f15fe4cb5a994',
+            'reference' => 'a2904fddfb1cceb5cd155870c555c7a4fe895b72',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

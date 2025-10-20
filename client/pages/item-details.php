@@ -241,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
 
 <script>
     function openChat(productId) {
-        window.location.href = '../chat.php?product_id=' + productId;
+        window.location.href = 'inquiry.php?product_id=' + productId;
     }
 </script>
 
