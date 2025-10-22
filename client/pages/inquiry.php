@@ -12,12 +12,72 @@ $product = $stmt->get_result()->fetch_assoc();
 
 if (!$product) die('Product not found.');
 
+// Fetch logged-in client's data
+$clientData = array(
+    'firstname' => '',
+    'lastname' => '',
+    'email' => '',
+    'phone' => '',
+    'region_code' => '',
+    'region_name' => '',
+    'province_code' => '',
+    'province_name' => '',
+    'city_code' => '',
+    'city_name' => '',
+    'barangay_code' => '',
+    'barangay_name' => '',
+    'street' => ''
+);
+
+if (isset($_SESSION['account_id'])) {
+    $account_id = intval($_SESSION['account_id']);
+    $query = "SELECT 
+                a.email,
+                up.first_name,
+                up.last_name,
+                up.contact_number,
+                up.region_code,
+                up.region_name,
+                up.province_code,
+                up.province_name,
+                up.city_code,
+                up.city_name,
+                up.barangay_code,
+                up.barangay_name,
+                up.street
+              FROM accounts a
+              LEFT JOIN user_profiles up ON a.id = up.account_id
+              WHERE a.id = ?";
+    
+    $stmt2 = $conn->prepare($query);
+    $stmt2->bind_param("i", $account_id);
+    $stmt2->execute();
+    $result = $stmt2->get_result();
+    
+    if ($result->num_rows > 0) {
+        $user = $result->fetch_assoc();
+        $clientData['firstname'] = htmlspecialchars($user['first_name'] ?? '');
+        $clientData['lastname'] = htmlspecialchars($user['last_name'] ?? '');
+        $clientData['email'] = htmlspecialchars($user['email'] ?? '');
+        $clientData['phone'] = htmlspecialchars($user['contact_number'] ?? '');
+        $clientData['region_code'] = htmlspecialchars($user['region_code'] ?? '');
+        $clientData['region_name'] = htmlspecialchars($user['region_name'] ?? '');
+        $clientData['province_code'] = htmlspecialchars($user['province_code'] ?? '');
+        $clientData['province_name'] = htmlspecialchars($user['province_name'] ?? '');
+        $clientData['city_code'] = htmlspecialchars($user['city_code'] ?? '');
+        $clientData['city_name'] = htmlspecialchars($user['city_name'] ?? '');
+        $clientData['barangay_code'] = htmlspecialchars($user['barangay_code'] ?? '');
+        $clientData['barangay_name'] = htmlspecialchars($user['barangay_name'] ?? '');
+        $clientData['street'] = htmlspecialchars($user['street'] ?? '');
+    }
+    $stmt2->close();
+}
+
 $modelPathFromDb = $product['model_path'] ?? null;
 $fullModelPath = $_SERVER['DOCUMENT_ROOT'] . '/STARROOFING/' . ltrim($modelPathFromDb, '/');
 
 $modelPath = ($modelPathFromDb && file_exists($fullModelPath) && is_file($fullModelPath))
     ? '/STARROOFING/' . ltrim($modelPathFromDb, '/')
-
     : null;
 
 $imagePathFromDb = $product['image_path'] ?? 'images/no-image.png';
@@ -47,13 +107,15 @@ body { margin:0; font-family:'Montserrat',sans-serif; background:#f5f7f9; }
 .inquiry-form { display:grid; grid-template-columns:1fr 1fr; gap:15px; }
 .inquiry-form .full-width { grid-column:1/-1; }
 .inquiry-form label { display:block; margin-bottom:5px; font-weight:500; color:#1a365d; }
-.inquiry-form input, .inquiry-form select, .inquiry-form textarea { width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:6px; font-size:1rem; font-family:'Montserrat',sans-serif; transition:border-color 0.3s; }
+.inquiry-form input, .inquiry-form select, .inquiry-form textarea { width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:6px; font-size:1rem; font-family:'Montserrat',sans-serif; transition:border-color 0.3s; box-sizing:border-box; }
 .inquiry-form input:focus, .inquiry-form select:focus, .inquiry-form textarea:focus { outline:none; border-color:#1a365d; box-shadow:0 0 0 2px rgba(26,54,93,0.2); }
 .inquiry-form textarea { min-height:120px; resize:vertical; }
 .button-container { grid-column:1/-1; text-align:center; }
 button[type="submit"] { background:#1a365d; color:#fff; border:none; border-radius:6px; padding:12px 25px; font-weight:600; cursor:pointer; transition:0.2s; }
 button[type="submit"]:hover { background:#2c5282; }
-@media(max-width:900px){ .page-container{flex-direction:column;align-items:center;} .inquiry-form{grid-template-columns:1fr;} }
+.form-row { display:flex; gap:15px; }
+.form-row .form-group { flex:1; }
+@media(max-width:900px){ .page-container{flex-direction:column;align-items:center;} .inquiry-form{grid-template-columns:1fr;} .form-row { flex-direction:column; } }
 </style>
 </head>
 <body>
@@ -89,10 +151,10 @@ button[type="submit"]:hover { background:#2c5282; }
 
         <div class="inquiry-form">
         <!-- Personal Info -->
-        <div class="form-group"><label>First Name</label><input type="text" name="firstname" required></div>
-        <div class="form-group"><label>Last Name</label><input type="text" name="lastname" required></div>
-        <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
-        <div class="form-group"><label>Phone</label><input type="tel" name="phone" required></div>
+        <div class="form-group"><label>First Name</label><input type="text" name="firstname" value="<?= $clientData['firstname'] ?>" required></div>
+        <div class="form-group"><label>Last Name</label><input type="text" name="lastname" value="<?= $clientData['lastname'] ?>" required></div>
+        <div class="form-group"><label>Email</label><input type="email" name="email" value="<?= $clientData['email'] ?>" required></div>
+        <div class="form-group"><label>Phone</label><input type="tel" name="phone" value="<?= $clientData['phone'] ?>" required></div>
 
         <!-- Address Section -->
         <div class="form-section full-width">
@@ -105,41 +167,41 @@ button[type="submit"]:hover { background:#2c5282; }
                     <select id="region" name="region_code" required>
                         <option value="">Select Region</option>
                     </select>
-                    <input type="hidden" id="region_name" name="region_name" value="">
+                    <input type="hidden" id="region_name" name="region_name" value="<?= $clientData['region_name'] ?>">
                 </div>
 
                 <!-- Province & City -->
-                <div class="form-row" style="display:flex; gap:15px;">
-                    <div class="form-group" style="flex:1;">
+                <div class="form-row">
+                    <div class="form-group">
                         <label for="province">Province *</label>
                         <select id="province" name="province_code" required disabled>
                             <option value="">Select Province</option>
                         </select>
-                        <input type="hidden" id="province_name" name="province_name" value="">
+                        <input type="hidden" id="province_name" name="province_name" value="<?= $clientData['province_name'] ?>">
                     </div>
 
-                    <div class="form-group" style="flex:1;">
+                    <div class="form-group">
                         <label for="city">City *</label>
                         <select id="city" name="city_code" required disabled>
                             <option value="">Select City</option>
                         </select>
-                        <input type="hidden" id="city_name" name="city_name" value="">
+                        <input type="hidden" id="city_name" name="city_name" value="<?= $clientData['city_name'] ?>">
                     </div>
                 </div>
 
                 <!-- Barangay & Street -->
-                <div class="form-row" style="display:flex; gap:15px;">
-                    <div class="form-group" style="flex:1;">
+                <div class="form-row">
+                    <div class="form-group">
                         <label for="barangay">Barangay *</label>
                         <select id="barangay" name="barangay_code" required disabled>
                             <option value="">Select Barangay</option>
                         </select>
-                        <input type="hidden" id="barangay_name" name="barangay_name" value="">
+                        <input type="hidden" id="barangay_name" name="barangay_name" value="<?= $clientData['barangay_name'] ?>">
                     </div>
 
-                    <div class="form-group" style="flex:1;">
+                    <div class="form-group">
                         <label for="street">Street</label>
-                        <textarea id="street" name="street" placeholder="House No., Street Name, Subdivision, etc."></textarea>
+                        <textarea id="street" name="street" placeholder="House No., Street Name, Subdivision, etc."><?= $clientData['street'] ?></textarea>
                     </div>
                 </div>
             </div>
@@ -164,9 +226,39 @@ button[type="submit"]:hover { background:#2c5282; }
 <script src="../../javascript/inquiry-address-selector.js"></script>
 
 <script>
+// Store client data for address initialization
+const clientAddressData = {
+    region_code: '<?= $clientData['region_code'] ?>',
+    province_code: '<?= $clientData['province_code'] ?>',
+    city_code: '<?= $clientData['city_code'] ?>',
+    barangay_code: '<?= $clientData['barangay_code'] ?>'
+};
+
 $(document).ready(function(){
     const submitBtn = $('#inquiryForm button[type="submit"]');
     const originalText = submitBtn.html();
+
+    // Initialize address selectors with client data after API loads
+    setTimeout(function() {
+        if (clientAddressData.region_code) {
+            $('#region').val(clientAddressData.region_code).trigger('change');
+            setTimeout(function() {
+                if (clientAddressData.province_code) {
+                    $('#province').val(clientAddressData.province_code).trigger('change');
+                    setTimeout(function() {
+                        if (clientAddressData.city_code) {
+                            $('#city').val(clientAddressData.city_code).trigger('change');
+                            setTimeout(function() {
+                                if (clientAddressData.barangay_code) {
+                                    $('#barangay').val(clientAddressData.barangay_code).trigger('change');
+                                }
+                            }, 300);
+                        }
+                    }, 300);
+                }
+            }, 300);
+        }
+    }, 500);
 
     $('#inquiryForm').on('submit', function(e){
         e.preventDefault();
@@ -184,24 +276,25 @@ $(document).ready(function(){
 
         submitBtn.html('<i class="fas fa-spinner fa-spin"></i> Processing...').prop('disabled',true);
         $.ajax({
-            url:'save_inquiry.php',
+            url:'../process/save_inquiry.php',
             type:'POST',
             data:$(this).serialize(),
-            success:function(response){
-                try {
-                    const res = JSON.parse(response);
-                    if(res.status==='success'){
-                        Swal.fire({icon:'success', title:'Inquiry Submitted!', text:'Thank you for your inquiry. We will get back to you within 24 hours.', confirmButtonColor:'#1a365d'})
-                        .then(()=> $('#inquiryForm')[0].reset());
-                    } else {
-                        Swal.fire({icon:'error', title:'Error', text:res.message||'Something went wrong.', confirmButtonColor:'#1a365d'});
-                    }
-                } catch(e) {
-                    Swal.fire({icon:'error', title:'Unexpected Response', text:'Please try again later.', confirmButtonColor:'#1a365d'});
+            dataType:'json',
+            success:function(res){
+                console.log('Response:', res);
+                if(res.status==='success'){
+                    Swal.fire({icon:'success', title:'Inquiry Submitted!', text:'Thank you for your inquiry. We will get back to you within 24 hours.', confirmButtonColor:'#1a365d'})
+                    .then(()=> $('#inquiryForm')[0].reset());
+                } else {
+                    Swal.fire({icon:'error', title:'Error', text:res.message||'Something went wrong.', confirmButtonColor:'#1a365d'});
                 }
                 submitBtn.html(originalText).prop('disabled',false);
             },
-            error:function(){ Swal.fire({icon:'error', title:'Submission Failed', text:'Please try again later.', confirmButtonColor:'#1a365d'}); submitBtn.html(originalText).prop('disabled',false); }
+            error:function(xhr, status, error){
+                console.error('AJAX Error:', xhr.responseText);
+                Swal.fire({icon:'error', title:'Submission Failed', text:'Error: ' + xhr.responseText.substring(0, 100), confirmButtonColor:'#1a365d'}); 
+                submitBtn.html(originalText).prop('disabled',false); 
+            }
         });
     });
 });

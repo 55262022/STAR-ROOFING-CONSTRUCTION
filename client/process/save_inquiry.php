@@ -1,7 +1,11 @@
 <?php
+session_start();
 require_once '../../database/starroofing_db.php';
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
+
+// Prevent any output before JSON
+ob_clean();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $firstname    = trim($_POST['firstname'] ?? '');
@@ -9,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email        = trim($_POST['email'] ?? '');
     $phone        = trim($_POST['phone'] ?? '');
     $message      = trim($_POST['message'] ?? '');
+    $product_id   = intval($_POST['product_id'] ?? 0);
     
     // Address fields
     $region_code  = trim($_POST['region_code'] ?? '');
@@ -24,32 +29,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Required field check
     if (empty($firstname) || empty($lastname) || empty($email) || empty($phone) ||
         empty($region_code) || empty($province_code) || empty($city_code) || empty($barangay_code) || empty($message)) {
+        http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Please fill all required fields.']);
-        exit;
+        exit();
     }
 
-    $stmt = $conn->prepare("
-        INSERT INTO inquiries 
-        (firstname, lastname, email, phone, message, 
-         region_code, region_name, province_code, province_name, city_code, city_name, barangay_code, barangay_name, street) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ");
-    
-    $stmt->bind_param(
-        "ssssssssssssss", 
-        $firstname, $lastname, $email, $phone, $message,
-        $region_code, $region_name, $province_code, $province_name, $city_code, $city_name, $barangay_code, $barangay_name, $street
-    );
+    try {
+        $stmt = $conn->prepare("
+            INSERT INTO inquiries 
+            (firstname, lastname, email, phone, message, product_id,
+             region_code, region_name, province_code, province_name, city_code, city_name, barangay_code, barangay_name, street) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        
+        if (!$stmt) {
+            throw new Exception("Prepare failed: " . $conn->error);
+        }
+        
+        $stmt->bind_param(
+            "sssssisssssssss", 
+            $firstname, $lastname, $email, $phone, $message, $product_id,
+            $region_code, $region_name, $province_code, $province_name, $city_code, $city_name, $barangay_code, $barangay_name, $street
+        );
 
-    if ($stmt->execute()) {
-        echo json_encode(['status' => 'success', 'message' => 'Inquiry saved successfully!']);
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database insertion failed.']);
+        if ($stmt->execute()) {
+            http_response_code(200);
+            echo json_encode(['status' => 'success', 'message' => 'Inquiry saved successfully!', 'inquiry_id' => $stmt->insert_id]);
+        } else {
+            throw new Exception("Execute failed: " . $stmt->error);
+        }
+
+        $stmt->close();
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
     }
-
-    $stmt->close();
-    $conn->close();
 } else {
-    echo json_encode(['status' => 'error', 'message' => 'Invalid request.']);
+    http_response_code(405);
+    echo json_encode(['status' => 'error', 'message' => 'Invalid request method.']);
 }
+
+$conn->close();
 ?>

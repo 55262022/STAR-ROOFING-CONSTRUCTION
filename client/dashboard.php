@@ -93,7 +93,7 @@ $email = $account['email'] ?? '';
             </section>
             <!-- inquiry page -->
             <section id="inquiry-section" class="section hidden">
-                <iframe src="inquiry.php" width="100%" height="100%" style="border:none; min-height:90vh;"></iframe>
+                <iframe src="pages/inquiry.php" width="100%" height="100%" style="border:none; min-height:90vh;"></iframe>
             </section>
         </main>
     </div>
