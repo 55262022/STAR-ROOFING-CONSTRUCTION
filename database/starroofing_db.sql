@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 22, 2025 at 09:34 AM
+-- Generation Time: Oct 23, 2025 at 05:58 PM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.0.30
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -43,8 +43,8 @@ CREATE TABLE `accounts` (
 --
 
 INSERT INTO `accounts` (`id`, `email`, `password`, `role_id`, `account_status`, `last_login`, `created_at`, `updated_at`) VALUES
-(7, 'ajmacaraig19@gmail.com', '$2y$10$vpvhTBLnHY84MDjuEUlAQ.XWjiJ2MW8iUUxsJB0kzF97DtmQU3H/G', 2, 'active', '2025-10-22 03:13:42', '2025-09-12 11:34:43', '2025-10-22 03:13:42'),
-(8, 'ajmacaraig20@gmail.com', '$2y$10$0xiOQg8aTUFKO9g/vajF.u5fM.nD9vMHXLqLPLoCia/HEzwR8XqAe', 1, 'active', '2025-10-22 02:51:24', '2025-09-12 11:45:37', '2025-10-22 02:51:24'),
+(7, 'ajmacaraig19@gmail.com', '$2y$10$vpvhTBLnHY84MDjuEUlAQ.XWjiJ2MW8iUUxsJB0kzF97DtmQU3H/G', 2, 'active', '2025-10-23 13:14:20', '2025-09-12 11:34:43', '2025-10-23 13:14:20'),
+(8, 'ajmacaraig20@gmail.com', '$2y$10$0xiOQg8aTUFKO9g/vajF.u5fM.nD9vMHXLqLPLoCia/HEzwR8XqAe', 1, 'active', '2025-10-23 07:53:06', '2025-09-12 11:45:37', '2025-10-23 07:53:06'),
 (9, 'ajmacaraig18@gmail.com', '$2y$10$TRYyLzGYJgBEC7JTpo5qD.8IOknPQ/Nhpa04gkhQmrHFe02.P4mLu', 2, 'active', '2025-10-08 06:52:34', '2025-09-15 09:34:45', '2025-10-12 07:29:51'),
 (10, '57842022@holycross.edu.ph', '$2y$10$VbwIwOWnPmhDvFsPwccoaOBzujWxl9waRxoJJbhXxMZpWPIR/Mmlu', 2, 'active', NULL, '2025-09-16 11:56:11', '2025-09-16 11:59:57'),
 (13, 'admin@gmail.com', '$2y$10$d7Cg4ccEJ1OLypxRhgg3rutDJYaVZwUrCcpzEv0vkIwH0Ddl.wp3a', 1, 'active', '2025-10-19 04:26:59', '2025-10-09 04:09:49', '2025-10-19 04:26:59'),
@@ -77,6 +77,27 @@ INSERT INTO `categories` (`category_id`, `category_code`, `category_name`, `desc
 (5, 'glass', 'Glass & Aluminum', 'Glass and aluminum products', '2025-09-14 11:46:09', '2025-09-14 11:46:09'),
 (6, 'cabinet', 'Modular Cabinet', 'Modular cabinet solutions', '2025-09-14 11:46:09', '2025-09-14 11:46:09'),
 (7, 'doors', 'Combi/Blind & Roll Up Doors', 'Various door types', '2025-09-14 11:46:09', '2025-09-14 11:46:09');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `conversations`
+--
+
+CREATE TABLE `conversations` (
+  `id` int(11) NOT NULL,
+  `email` varchar(150) NOT NULL,
+  `is_accepted` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `conversations`
+--
+
+INSERT INTO `conversations` (`id`, `email`, `is_accepted`, `created_at`, `updated_at`) VALUES
+(6, 'ajmacaraig19@gmail.com', 1, '2025-10-23 07:44:44', '2025-10-23 13:16:40');
 
 -- --------------------------------------------------------
 
@@ -132,6 +153,7 @@ CREATE TABLE `inquiries` (
   `street` varchar(255) DEFAULT NULL,
   `message` text NOT NULL,
   `product_id` int(11) DEFAULT NULL,
+  `conversation_id` int(11) DEFAULT NULL,
   `submitted_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `is_accepted` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -140,13 +162,34 @@ CREATE TABLE `inquiries` (
 -- Dumping data for table `inquiries`
 --
 
-INSERT INTO `inquiries` (`id`, `firstname`, `lastname`, `email`, `phone`, `region_code`, `region_name`, `province_code`, `province_name`, `city_code`, `city_name`, `barangay_code`, `barangay_name`, `street`, `message`, `product_id`, `submitted_at`, `is_accepted`) VALUES
-(1, 'John', 'Doe', 'client@example.com', '09171234567', '', '', '', '', '', '', '', '', NULL, 'Hi, I’d like to inquire about a new roofing installation.', NULL, '2025-10-20 07:29:16', 1),
-(2, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'ff', NULL, '2025-10-21 09:09:58', 0),
-(3, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'gg', NULL, '2025-10-21 09:15:19', 0),
-(4, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'gg', NULL, '2025-10-21 09:17:33', 1),
-(5, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'gg', 2, '2025-10-21 09:23:36', 1),
-(6, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'jael lumbay', 2, '2025-10-22 03:14:07', 1);
+INSERT INTO `inquiries` (`id`, `firstname`, `lastname`, `email`, `phone`, `region_code`, `region_name`, `province_code`, `province_name`, `city_code`, `city_name`, `barangay_code`, `barangay_name`, `street`, `message`, `product_id`, `conversation_id`, `submitted_at`, `is_accepted`) VALUES
+(1, 'John', 'Doe', 'client@example.com', '09171234567', '', '', '', '', '', '', '', '', NULL, 'Hi, I’d like to inquire about a new roofing installation.', NULL, NULL, '2025-10-20 07:29:16', 1),
+(2, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'ff', NULL, NULL, '2025-10-21 09:09:58', 1),
+(3, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'gg', NULL, NULL, '2025-10-21 09:15:19', 1),
+(4, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'gg', NULL, NULL, '2025-10-21 09:17:33', 1),
+(5, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'gg', 2, NULL, '2025-10-21 09:23:36', 1),
+(6, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'jael lumbay', 2, NULL, '2025-10-22 03:14:07', 1),
+(7, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'hello po', 2, NULL, '2025-10-22 08:21:21', 1),
+(8, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'jpjppjpp', 2, NULL, '2025-10-22 08:22:52', 1),
+(9, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'uyuy', 2, NULL, '2025-10-22 09:11:49', 0),
+(10, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'uyuy', 2, NULL, '2025-10-22 09:11:50', 0),
+(11, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'uyuy', 2, NULL, '2025-10-22 09:11:50', 1),
+(12, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'ioiouo', 2, NULL, '2025-10-22 09:12:55', 0),
+(13, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'ioiouo', 2, NULL, '2025-10-22 09:12:58', 0),
+(14, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'ioiouo', 2, NULL, '2025-10-22 09:12:58', 0),
+(15, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', '....', 2, NULL, '2025-10-22 09:13:39', 0),
+(16, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', '....', 2, NULL, '2025-10-22 09:13:45', 0),
+(17, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', '....', 2, NULL, '2025-10-22 09:13:45', 0),
+(18, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'hello', 2, NULL, '2025-10-23 07:00:48', 0),
+(19, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'hello', 2, NULL, '2025-10-23 07:00:59', 0),
+(20, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'hello', 2, NULL, '2025-10-23 07:00:59', 0),
+(21, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'ji', 2, NULL, '2025-10-23 07:06:30', 0),
+(22, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'ji', 2, NULL, '2025-10-23 07:06:33', 1),
+(23, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'ji', 2, NULL, '2025-10-23 07:06:33', 1),
+(24, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'hhhiii', 2, 6, '2025-10-23 07:44:44', 1),
+(25, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'xxxxx', 2, 6, '2025-10-23 07:46:24', 1),
+(26, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'nnnnn', 8, 6, '2025-10-23 07:58:10', 1),
+(27, 'aj', 'lin', 'ajmacaraig19@gmail.com', '091287382173721', '12', 'Region XII (SOCCSKSARGEN)', '1247', 'Cotabato (North Cotabato)', '124711', 'Pigkawayan', '124711015', 'Kimarayang', 'bahay', 'hilo', 2, 6, '2025-10-23 13:16:40', 0);
 
 -- --------------------------------------------------------
 
@@ -238,6 +281,9 @@ INSERT INTO `products` (`product_id`, `category_id`, `name`, `description`, `pri
 CREATE TABLE `replies` (
   `id` int(11) NOT NULL,
   `inquiry_id` int(11) NOT NULL,
+  `conversation_id` int(11) DEFAULT NULL,
+  `related_inquiry_id` int(11) DEFAULT NULL,
+  `related_product_id` int(11) DEFAULT NULL,
   `sender` enum('admin','client') NOT NULL,
   `message` text NOT NULL,
   `sent_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -248,11 +294,22 @@ CREATE TABLE `replies` (
 -- Dumping data for table `replies`
 --
 
-INSERT INTO `replies` (`id`, `inquiry_id`, `sender`, `message`, `sent_at`, `is_read`) VALUES
-(1, 1, 'client', 'Hello, I’d like to know the cost for a metal roof.', '2025-10-20 07:29:32', 0),
-(2, 1, 'admin', 'Hi John! Thanks for reaching out. The price starts at ₱500 per sqm.', '2025-10-20 07:29:32', 1),
-(3, 1, 'client', 'Okay great! Can I send my house measurements?', '2025-10-20 07:29:32', 0),
-(4, 1, 'admin', 'Sure, please send them over so we can provide a full quotation.', '2025-10-20 07:29:32', 1);
+INSERT INTO `replies` (`id`, `inquiry_id`, `conversation_id`, `related_inquiry_id`, `related_product_id`, `sender`, `message`, `sent_at`, `is_read`) VALUES
+(1, 1, NULL, NULL, NULL, 'client', 'Hello, I’d like to know the cost for a metal roof.', '2025-10-20 07:29:32', 0),
+(2, 1, NULL, NULL, NULL, 'admin', 'Hi John! Thanks for reaching out. The price starts at ₱500 per sqm.', '2025-10-20 07:29:32', 1),
+(3, 1, NULL, NULL, NULL, 'client', 'Okay great! Can I send my house measurements?', '2025-10-20 07:29:32', 0),
+(4, 1, NULL, NULL, NULL, 'admin', 'Sure, please send them over so we can provide a full quotation.', '2025-10-20 07:29:32', 1),
+(5, 7, NULL, NULL, NULL, 'admin', 'ok', '2025-10-22 08:34:28', 0),
+(6, 11, NULL, NULL, NULL, 'admin', 'hjhj', '2025-10-22 09:13:59', 1),
+(7, 11, NULL, NULL, NULL, 'admin', '[pppppppppppppp', '2025-10-22 09:14:09', 1),
+(8, 24, 6, 24, 2, 'client', 'hhhiii', '2025-10-23 07:44:44', 0),
+(9, 25, 6, 25, 2, 'client', 'xxxxx', '2025-10-23 07:46:24', 0),
+(10, 25, NULL, NULL, NULL, 'admin', 'hello', '2025-10-23 07:53:19', 0),
+(11, 26, 6, 26, 8, 'client', 'nnnnn', '2025-10-23 07:58:10', 0),
+(12, 26, NULL, NULL, NULL, 'admin', 'hi', '2025-10-23 07:58:58', 0),
+(13, 26, 6, 26, 8, 'admin', 'ok', '2025-10-23 08:00:30', 1),
+(14, 26, 6, 26, 8, 'admin', 'hhh', '2025-10-23 08:00:46', 1),
+(15, 27, 6, 27, 2, 'client', 'hilo', '2025-10-23 13:16:40', 0);
 
 -- --------------------------------------------------------
 
@@ -336,6 +393,13 @@ ALTER TABLE `categories`
   ADD UNIQUE KEY `category_code` (`category_code`);
 
 --
+-- Indexes for table `conversations`
+--
+ALTER TABLE `conversations`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_email` (`email`);
+
+--
 -- Indexes for table `employees`
 --
 ALTER TABLE `employees`
@@ -346,7 +410,8 @@ ALTER TABLE `employees`
 -- Indexes for table `inquiries`
 --
 ALTER TABLE `inquiries`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `conversation_id` (`conversation_id`);
 
 --
 -- Indexes for table `login_attempts`
@@ -373,7 +438,8 @@ ALTER TABLE `products`
 --
 ALTER TABLE `replies`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `inquiry_id` (`inquiry_id`);
+  ADD KEY `inquiry_id` (`inquiry_id`),
+  ADD KEY `conversation_id` (`conversation_id`);
 
 --
 -- Indexes for table `roles`
@@ -406,6 +472,12 @@ ALTER TABLE `categories`
   MODIFY `category_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
+-- AUTO_INCREMENT for table `conversations`
+--
+ALTER TABLE `conversations`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
 -- AUTO_INCREMENT for table `employees`
 --
 ALTER TABLE `employees`
@@ -415,7 +487,7 @@ ALTER TABLE `employees`
 -- AUTO_INCREMENT for table `inquiries`
 --
 ALTER TABLE `inquiries`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT for table `login_attempts`
@@ -439,7 +511,7 @@ ALTER TABLE `products`
 -- AUTO_INCREMENT for table `replies`
 --
 ALTER TABLE `replies`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `roles`
@@ -464,6 +536,12 @@ ALTER TABLE `accounts`
   ADD CONSTRAINT `accounts_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE SET NULL;
 
 --
+-- Constraints for table `inquiries`
+--
+ALTER TABLE `inquiries`
+  ADD CONSTRAINT `inquiries_ibfk_1` FOREIGN KEY (`conversation_id`) REFERENCES `conversations` (`id`);
+
+--
 -- Constraints for table `products`
 --
 ALTER TABLE `products`
@@ -474,7 +552,7 @@ ALTER TABLE `products`
 -- Constraints for table `replies`
 --
 ALTER TABLE `replies`
-  ADD CONSTRAINT `replies_ibfk_1` FOREIGN KEY (`inquiry_id`) REFERENCES `inquiries` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `replies_ibfk_2` FOREIGN KEY (`conversation_id`) REFERENCES `conversations` (`id`);
 
 --
 -- Constraints for table `user_profiles`
